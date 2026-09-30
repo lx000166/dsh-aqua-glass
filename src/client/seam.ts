@@ -107,13 +107,15 @@ export const PHASE_ACTIVE = "[data-phase='active']"
 /**
  * 全部缝合点的登记表。`seam.test.ts` 逐条断言它们**原样出现在样式表里**，
  * 所以删规则、改选择器都会被测试挡住 —— 这是本项目对 DSH 升级的第一道防线。
+ *
+ * 注意：这里只登记**样式表真的用到**的选择器。像 `INPUTBAR`（发送栏根）这类
+ * 只用于诊断探针的盖章，不登记 —— 否则会被迫为它编一条规则来喂测试。
  */
 export const SEAM = {
   SIDEBAR,
   CONVERSATION,
   SIDEBAR_ROOT,
   FRAME,
-  INPUTBAR,
   STATS,
   TOPBAR,
   COMPOSER_CARD,

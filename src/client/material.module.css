@@ -55,6 +55,29 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] {
   --aqua-inset: var(--aqua-inset-dark);
 }
 
+/* ── 原生标题栏（Windows 顶部那条带子）─────────────────────────────────
+ *
+ * 桌面端 preload 用 `<span>` 探针读 **`--dsw-specific-sidebar-fill`** 的计算值，
+ * 经 IPC 交给 Electron 的 `titleBarOverlay` —— 所以那个变量就是标题栏底色。
+ * 它是官方 14 个可覆盖 token 之一（"Sidebar column and title-row background"），
+ * 上游 Aqua 没动过它，标题栏因此一直是原生灰，和主题脱节。
+ *
+ * 两个必须知道的限制：
+ * 1. **只能是纯色** —— preload 走 canvas 把颜色拍平（alpha 会被丢弃），
+ *    所以做不到透明或模糊，只能给一个与流体协调的实色。
+ * 2. preload 监听 `document.head` 的子树变化，我们注入的 `<style>` 会触发它
+ *    重算，因此**跟随深浅两态自动更新**，不需要额外动作。
+ *
+ * 副作用：这个变量也是侧栏的默认底色，但侧栏已被上面的玻璃规则接管，
+ * 实际可见的影响只在标题栏。 */
+body[data-dsh-aqua-glass] {
+  --dsw-specific-sidebar-fill: #eef4fb;
+}
+
+body[data-dsh-aqua-glass][data-ds-dark-theme] {
+  --dsw-specific-sidebar-fill: #0d1420;
+}
+
 /* ── 让 L3 流体背景板透出来 ───────────────────────────────────────────── */
 
 /* body 保持宿主基色；`:root` 没有背景，所以按 CSS 规则它会**上提到 canvas**，
@@ -105,25 +128,22 @@ body[data-dsh-aqua-glass] [data-aqua-frame]:not([data-sidebar-collapsed]) [data-
   width: 100% !important;
 }
 
-/* 收起态：轨道也悬浮。宿主自己的几何要保留 —— 框架的网格轨道从 256 滑到
-   56（300ms），同时把冻住的宽内容淡出（150ms）；在这里钉死宽度会立刻裁掉
-   正在淡出的内容。悬浮缝靠「左 12px + 负的右 12px」实现，外侧尺寸不变，
-   主列因此不动。内边距必须显式归零：展开态的 12px 横向内边距会把轨道按钮
-   挤出这条窄列 —— 那就是「收起后顶栏图标丢失」的原因。 */
+/* 收起态：**整套卡片几何撤掉，交回宿主原样**。
+ *
+ * 上游在 mica 模式下让轨道也悬浮（margin 12px / -12px、圆角 16px、padding 归零），
+ * 但宿主的轨道几何与顶栏图标定位（`--dsh-windows-menu-start`）耦合很紧：
+ * 实测照搬会把展开/收起开关挤出可视区，用户就没法再把侧栏点开了。
+ * 功能优先 —— 收起态先保持原生外观，悬浮轨道留到 S3 视觉校正时单独做。 */
 body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='sidebar'], [class*='sidebarCol']) {
-  margin: 12px -12px 12px 12px;
+  margin: 0;
   padding: 0;
-  border-radius: 16px;
-  transition:
-    margin 150ms ease-in-out,
-    border-radius 150ms ease-in-out,
-    transform 0.1s ease-out;
-}
-
-/* 收起后悬浮轨道向聊天区探进 12px，顶栏卡跟着右移让位
-   （28px 内缩 = 离轨道边缘还有 16px 空隙）。 */
-body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
-  margin-left: 28px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  overflow: visible;
+  z-index: auto;
 }
 
 /* ── 会话顶栏：悬浮玻璃卡，配方与发送栏同款 ───────────────────────────── */
@@ -163,52 +183,11 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
 }
 
-/* 融合态：数据行挂在发送卡下面之后，**整条输入栏**合成为一块玻璃 ——
-   背景、模糊、描边、投影全打在外层包裹上；卡片与数据行在里面转透明
-   （这样两者的色调与模糊永远不会各走各的），只留接缝处一道发丝线。
-   这就是「发送栏下面那块白色」的解法。 */
-body[data-dsh-aqua-glass] [data-aqua-inputbar]:has([data-aqua-stats]) {
-  border: 1px solid var(--aqua-line);
-  border-radius: 24px;
-  background: var(--aqua-glass);
-  box-shadow: var(--aqua-inset), 0 10px 36px rgb(19 45 83 / 0.16);
-  backdrop-filter: var(--aqua-filter);
-}
-
-body[data-dsh-aqua-glass][data-ds-dark-theme] [data-aqua-inputbar]:has([data-aqua-stats]) {
-  border-color: var(--aqua-line-dark);
-  box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
-}
-
-body[data-dsh-aqua-glass] [data-aqua-inputbar]:has([data-aqua-stats]) [data-composer-card] {
-  border: none;
-  border-radius: 0;
+/* 数据行：**保持原生布局**（不改位置、不改尺寸、不与发送卡融合），
+   只把它自带的不透明底拿掉 —— 那正是「发送栏下面那块白色」。
+   发送栏自己仍是一张独立的玻璃卡。 */
+body[data-dsh-aqua-glass] [data-aqua-stats] {
   background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-body[data-dsh-aqua-glass] [data-aqua-inputbar]:has([data-aqua-stats]) [data-aqua-stats] {
-  width: 100%;
-  max-width: none;
-  /* 贴在板子最底部：这条带子的**最小高度**等于 24px 圆角半径，分界线
-     正好落在左右下角开始起弧的位置。用块布局（不是 flex）以保留宿主
-     原本的单行省略号，长数据不会溢出右边缘。 */
-  margin: auto 0 0;
-  min-height: 24px;
-  box-sizing: border-box;
-  display: block;
-  padding: 2px 16px;
-  border: none;
-  border-top: 1px solid rgb(19 45 83 / 0.18);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-body[data-dsh-aqua-glass][data-ds-dark-theme] [data-aqua-inputbar]:has([data-aqua-stats]) [data-aqua-stats] {
-  border-top-color: rgb(148 180 220 / 0.24);
 }
 
 /* 空白会话（英雄区）：发送栏悬在页面中部，投影放开一些，水色透得更足 */

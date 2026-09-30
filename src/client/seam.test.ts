@@ -126,16 +126,27 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     }
   })
 
-  it('收起态有独立几何，且发送栏融合态覆盖了数据行', () => {
+  it('发送栏下的白块被拿掉，但保持原生布局（不融合）', () => {
     const rule = squash(MATERIAL_CSS)
-    // 收起态必须显式归零内边距，否则轨道按钮被挤出窄列（顶栏图标"丢失"）。
-    expect(rule).toMatch(/\[data-sidebar-collapsed\][^{]*\{[^}]*padding: 0/)
-    // 融合态：发送卡与数据行在包裹层里转透明，只留一道发丝分界线。
-    expect(rule).toMatch(/\[data-aqua-inputbar\]:has\(\[data-aqua-stats\]\)/)
-    expect(rule).toMatch(/\[data-aqua-stats\][^{]*\{[^}]*background: transparent/)
-    // 会话进行中的发送区底座必须整块拿掉（特指度靠类名写两遍提权）。
+    // 数据行只去底色，不改位置/尺寸 —— 融合态（整条输入栏合成一块玻璃）已废弃。
+    expect(rule).toMatch(/\[data-aqua-stats\]\s*\{[^}]*background: transparent/)
+    expect(rule, '不应再有融合态包裹规则').not.toContain('[data-aqua-inputbar]')
+    // 会话进行中的发送区底座必须整块拿掉（宿主特指度 (0,3,0)，靠双写类名提权）。
     expect(rule).toContain("[class*='composerSeat'][class*='composerSeat']")
     expect(rule).toMatch(/composerSeat'\]\[class\*='composerSeat'\]\s*\{[^}]*background: none/)
+  })
+
+  it('收起态交回宿主原样（硬改轨道几何会把开关挤出可视区）', () => {
+    const rule = squash(MATERIAL_CSS)
+    expect(rule).toMatch(/\[data-sidebar-collapsed\][^{]*\{[^}]*margin: 0/)
+    expect(rule).toMatch(/\[data-sidebar-collapsed\][^{]*\{[^}]*backdrop-filter: none/)
+  })
+
+  it('原生标题栏底色跟随主题（覆盖桌面端 preload 读取的那个 token）', () => {
+    const rule = squash(MATERIAL_CSS)
+    // preload 用隐藏探针读 --dsw-specific-sidebar-fill 的计算值当标题栏底色。
+    const hits = rule.match(/--dsw-specific-sidebar-fill:/g) ?? []
+    expect(hits.length, '浅深两态各要一条 --dsw-specific-sidebar-fill 覆盖').toBeGreaterThanOrEqual(2)
   })
 })
 

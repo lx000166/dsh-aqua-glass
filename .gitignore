@@ -3,3 +3,4 @@ reference/
 *.log
 *.tsbuildinfo
 .DS_Store
+\.git-commit-msg.txt
