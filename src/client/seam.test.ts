@@ -136,10 +136,18 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule).toMatch(/composerSeat'\]\[class\*='composerSeat'\]\s*\{[^}]*background: none/)
   })
 
-  it('收起态交回宿主原样（硬改轨道几何会把开关挤出可视区）', () => {
-    const rule = squash(MATERIAL_CSS)
-    expect(rule).toMatch(/\[data-sidebar-collapsed\][^{]*\{[^}]*margin: 0/)
-    expect(rule).toMatch(/\[data-sidebar-collapsed\][^{]*\{[^}]*backdrop-filter: none/)
+  it('侧栏只换材质不动几何，并把内容根的自带底色置透明', () => {
+    const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    // 侧栏列只允许出现材质声明 —— 几何声明（margin/padding/border-radius/
+    // overflow/z-index）会把顶栏里的展开开关挤进卡片甚至挤出可视区。
+    const columnRule = rule.match(/body\[data-dsh-aqua-glass\] :is\(\[data-pane='sidebar'\][^{]*\{([^}]*)\}/)?.[1] ?? ''
+    expect(columnRule, '侧栏列规则没解析出来').not.toBe('')
+    expect(columnRule).toContain('backdrop-filter')
+    for (const forbidden of ['margin:', 'padding:', 'border-radius:', 'overflow:', 'z-index:']) {
+      expect(columnRule, `侧栏列规则里不该有 ${forbidden}`).not.toContain(forbidden)
+    }
+    // 内容根自带 background: var(--dsw-specific-sidebar-fill)，不置透明会盖住玻璃。
+    expect(rule).toMatch(/\[data-aqua-sidebar-root\]\s*\{[^}]*background: transparent/)
   })
 
   it('原生标题栏底色跟随主题（覆盖桌面端 preload 读取的那个 token）', () => {

@@ -104,6 +104,14 @@ export function mountDiagnostic(version: string): () => void {
       lines.push('bg n/a')
     }
 
+    // 原生标题栏底色：桌面端 preload 读的就是这个变量的计算值。
+    try {
+      const fill = getComputedStyle(document.body).getPropertyValue('--dsw-specific-sidebar-fill').trim()
+      lines.push(`标题栏色 ${fill || '(未覆盖)'}`)
+    } catch {
+      lines.push('标题栏色 n/a')
+    }
+
     // 视口中心点上的元素：如果它带着不透明底色，流体就是被它盖住的。
     if (typeof document.elementFromPoint === 'function') {
       try {
