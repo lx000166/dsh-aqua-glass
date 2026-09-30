@@ -17,15 +17,17 @@
  *
  * @module diagnostic
  */
-import { COMPOSER_CARD, NEW_SESSION, SIDEBAR, SIDEBAR_SURFACE, TOPBAR } from './seam.ts'
+import { COMPOSER_CARD, FRAME, NEW_SESSION, SIDEBAR, SIDEBAR_SURFACE, TOPBAR } from './seam.ts'
 
 /** 角标上报的缝合点。 */
 const PROBES: ReadonlyArray<readonly [string, string]> = [
+  ['框架层', FRAME],
   ['侧栏', SIDEBAR],
   ['侧栏面', SIDEBAR_SURFACE],
   ['顶栏', TOPBAR],
   ['发送栏', COMPOSER_CARD],
   ['新建', NEW_SESSION],
+  ['流体板', '[data-dsh-aqua-fluid-canvas]'],
 ]
 
 const BADGE_ID = 'dsh-aqua-glass-diagnostic'

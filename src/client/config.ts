@@ -25,6 +25,10 @@ export interface GlassConfig {
   frost: number
   /** 圆角（px）。 */
   radius: number
+  /** 流体色调（0–360，连续）。上游默认 320 落在青蓝上。 */
+  hue: number
+  /** 流体深浅（0–100：0 = 深而饱和，100 = 极淡）。 */
+  depth: number
   /**
    * 诊断角标（临时）。右下角实时显示各缝合点命中的元素数。
    * 视觉定稿前删掉 diagnostic.ts 与本开关。
@@ -37,6 +41,8 @@ export const DEFAULT_CONFIG: GlassConfig = {
   blur: 18,
   frost: 0.55,
   radius: 14,
+  hue: 320,
+  depth: 25,
   debug: true,
 }
 
@@ -67,6 +73,8 @@ export function readConfig(): GlassConfig {
       blur: clamp(Number(candidate.blur), 0, 60, DEFAULT_CONFIG.blur),
       frost: clamp(Number(candidate.frost), 0, 1, DEFAULT_CONFIG.frost),
       radius: clamp(Number(candidate.radius), 0, 40, DEFAULT_CONFIG.radius),
+      hue: clamp(Number(candidate.hue), 0, 360, DEFAULT_CONFIG.hue),
+      depth: clamp(Number(candidate.depth), 0, 100, DEFAULT_CONFIG.depth),
       debug: typeof candidate.debug === 'boolean' ? candidate.debug : DEFAULT_CONFIG.debug,
     }
   } catch {

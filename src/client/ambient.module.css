@@ -1,0 +1,157 @@
+/**
+ * L3 环境层样式（流体板 + 小鱼/气泡/浮游）。
+ *
+ * 从上游 `aqua.module.css` 的第 83–303 行整段搬来，只做了一件事：把作用域
+ * 从上游的 `[data-dsh-aqua]`（挂在 `<html>` 上）换成本插件的
+ * `body[data-dsh-aqua-glass]`。选择器本身一字未改。
+ *
+ * 与 `material.module.css` 一样，**每条规则都以总开关属性为前缀**——
+ * `seam.test.ts` 会读这两份文件的文本逐条断言。
+ *
+ * 元素由 `ambient-scene.ts` prepend 到 `<body>`；`z-index: -1` 让它们落在
+ * 应用内容之下、body 背景之上。
+ */
+
+/* ---------- 环境场景：会呼吸的深海层 ---------- */
+
+body[data-dsh-aqua-glass] [data-dsh-aqua-ambient] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgb(160 200 255 / 0.26), transparent 70%),
+    linear-gradient(180deg, rgb(156 193 231 / 0.22) 0%, rgb(156 193 231 / 0) 38%),
+    radial-gradient(900px 420px at 50% 108%, rgb(156 193 231 / 0.14), transparent 70%);
+}
+
+body[data-dsh-aqua-glass][data-ds-dark-theme] [data-dsh-aqua-ambient] {
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgb(110 165 255 / 0.13), transparent 70%),
+    linear-gradient(180deg, rgb(94 143 224 / 0.13) 0%, rgb(94 143 224 / 0) 46%),
+    radial-gradient(900px 420px at 50% 108%, rgb(94 143 224 / 0.09), transparent 70%);
+}
+
+/* 背景亮度旋钮：深色变暗、浅色变亮。两层都放在 ::after —— 它画在流体
+   canvas / 壁纸**之上**；换成 ::before 会被它们盖住，看不见。 */
+body[data-dsh-aqua-glass] [data-dsh-aqua-ambient]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / var(--aqua-brightness-white, 0)), rgb(255 255 255 / var(--aqua-brightness-white, 0))),
+    linear-gradient(rgb(0 0 0 / var(--aqua-brightness-black, 0)), rgb(0 0 0 / var(--aqua-brightness-black, 0)));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body[data-dsh-aqua-glass] [data-dsh-aqua-ambient] {
+    animation: dsh-aqua-breathe 9s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes dsh-aqua-breathe {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
+}
+
+/* ---------- 流体板 canvas ---------- */
+
+body[data-dsh-aqua-glass] [data-dsh-aqua-fluid-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- 图片壁纸层（本轮只留 DOM，选择器照搬） ---------- */
+
+body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper-img] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(var(--aqua-wallpaper-blur, 0px));
+}
+
+/* 柔光罩：浅色盖白、深色盖近黑 */
+body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / var(--aqua-wallpaper-frost, 0));
+  pointer-events: none;
+}
+
+body[data-dsh-aqua-glass][data-ds-dark-theme] [data-dsh-aqua-wallpaper]::after {
+  background: rgb(12 18 27 / var(--aqua-wallpaper-frost, 0));
+}
+
+/* 背景源切换：只显示当前那一块板 */
+body[data-dsh-aqua-glass] [data-dsh-aqua-ambient][data-background='wallpaper'] [data-dsh-aqua-fluid-canvas] {
+  display: none;
+}
+
+body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper][data-background='fluid'] {
+  display: none;
+}
+
+/* ---------- 小鱼 / 气泡 / 浮游 ---------- */
+
+body[data-dsh-aqua-glass] [data-aqua-critter] {
+  position: absolute;
+  color: #7ea4df;
+  opacity: 0.22;
+}
+
+body[data-dsh-aqua-glass] [data-aqua-critter='fish'] {
+  animation: dsh-aqua-fish-swim 12s ease-in-out infinite;
+}
+
+body[data-dsh-aqua-glass] [data-aqua-critter='fish-left'] {
+  animation: dsh-aqua-fish-swim-left 16s ease-in-out infinite;
+}
+
+body[data-dsh-aqua-glass] [data-aqua-critter='bubble'] {
+  color: #a9c6ef;
+  opacity: 0;
+  animation: dsh-aqua-bubble-rise 9s ease-in infinite;
+}
+
+body[data-dsh-aqua-glass] [data-aqua-critter='plankton'] {
+  color: #7ea4df;
+  animation: dsh-aqua-plankton 5s ease-in-out infinite;
+}
+
+/* 不均匀的时间百分比让游动有"活物"的节奏：快冲、长滑、短停。
+   每条鱼的时长由行内样式指定（9s / 14s / 19s）。 */
+@keyframes dsh-aqua-fish-swim {
+  0% { transform: translate3d(0, 0, 0) rotate(-5deg); }
+  30% { transform: translate3d(40px, -15px, 0) rotate(4deg); }
+  70% { transform: translate3d(52px, -18px, 0) rotate(3deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(-5deg); }
+}
+
+@keyframes dsh-aqua-fish-swim-left {
+  0% { transform: translate3d(0, 0, 0) scaleX(-1) rotate(-5deg); }
+  30% { transform: translate3d(-34px, -12px, 0) scaleX(-1) rotate(4deg); }
+  70% { transform: translate3d(-44px, -15px, 0) scaleX(-1) rotate(3deg); }
+  100% { transform: translate3d(0, 0, 0) scaleX(-1) rotate(-5deg); }
+}
+
+@keyframes dsh-aqua-bubble-rise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: 0.5; }
+  100% { transform: translate3d(8px, -150px, 0); opacity: 0; }
+}
+
+@keyframes dsh-aqua-plankton {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.38; }
+}

@@ -1,25 +1,27 @@
 /**
- * 产物冒烟加载 —— `pnpm smoke`（已并入 `pnpm verify` 之前的独立一步）。
+ * 产物冒烟加载 —— `pnpm verify` 的第二段。
  *
- * 这比「构建成功」强一档：这里真的把 `lib/client.js` 执行一遍，走完宿主
- * 加载它的完整路径 ——
+ * 这比「构建成功」强一档：这里把 `lib/client.js` 放进一个**真实的 DOM 环境**
+ * （jsdom）里跑完整条宿主加载路径 ——
  *
  *   __ModuleLoader__.load({ id, factory })
  *     → 校验 id 等于包名（宿主以包名作为浏览器模块身份）
- *     → 校验 factory 体**无副作用**（执行它不应该碰 DOM）
- *     → 用一个「一调用就抛」的 require 执行 factory，证明产物零模块依赖
+ *     → 校验 factory 体无副作用（执行它不该碰 DOM）
+ *     → 用「一调用就抛」的 require 执行 factory，证明产物零模块依赖
  *     → 取到 exports.apply 并真的调用它
- *     → 断言 body 标记、<style> 注入、CSS 变量、以及卸载后的完全回收
+ *     → 断言总开关属性、<style> 注入、CSS 变量、环境层 DOM、诊断角标
+ *     → 断言卸载后完全回收
+ *     → 断言 WebGL 不可用时优雅退化
  *
- * 不能替代的部分：真实浏览器里的渲染、`backdrop-filter` 是否被祖先
- * stacking context 吃掉、portal 与焦点行为。这些必须在真机上看。
+ * **不能替代的部分**：真实浏览器里的渲染、`backdrop-filter` 是否被祖先
+ * stacking context 吃掉、WebGL2 是否真的编译通过、portal 与焦点行为。
+ * jsdom 不实现 WebGL，所以流体着色器在这里永远走「无 WebGL」分支。
  */
 import { readFileSync } from 'node:fs'
-import { createContext, runInContext } from 'node:vm'
+import { JSDOM } from 'jsdom'
 
 const BUNDLE = new URL('../lib/client.js', import.meta.url)
 const code = readFileSync(BUNDLE, 'utf8')
-
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 const EXPECTED_ID = pkg.name
 
@@ -30,166 +32,157 @@ const check = (condition, message) => {
   else failures.push(message)
 }
 
-// ── 最小 DOM 桩 ────────────────────────────────────────────────────────────
-function makeDom() {
-  const attributes = new Map()
-  const styles = new Map()
-  const injectedStyles = [] // document.head 收到的 <style>
-  const bodyChildren = [] // document.body 收到的子节点
+/** 建一个隔离的浏览器环境，把产物跑起来并交出捕获到的注册项。 */
+function boot({ storage = {}, materialize = true } = {}) {
+  const dom = new JSDOM(
+    '<!doctype html><html><head></head><body><div id="root"></div></body></html>',
+    { url: 'http://127.0.0.1:19387/', pretendToBeVisual: true, runScripts: 'dangerously' },
+  )
+  const { window } = dom
+  windows.push(window)
+  // jsdom 不实现 WebGL：钉死成 null，让产物走「无 WebGL 优雅退化」分支，
+  // 顺便避免 jsdom 打一堆 "Not implemented" 噪音。
+  window.HTMLCanvasElement.prototype.getContext = () => null
 
-  const head = { appendChild: (node) => injectedStyles.push(node) }
-  const body = {
-    getAttribute: (name) => attributes.get(name) ?? null,
-    setAttribute: (name, value) => void attributes.set(name, value),
-    removeAttribute: (name) => void attributes.delete(name),
-    appendChild: (node) => bodyChildren.push(node),
-  }
-  const documentElement = {
-    style: {
-      setProperty: (name, value) => void styles.set(name, value),
-      removeProperty: (name) => void styles.delete(name),
-    },
-  }
+  for (const [key, value] of Object.entries(storage)) window.localStorage.setItem(key, value)
 
-  return {
-    attributes,
-    styles,
-    injectedStyles,
-    bodyChildren,
-    document: {
-      body,
-      documentElement,
-      head,
-      // bundle 里的 CSS 注入守卫会问一次「这个 style 标签在不在」；
-      // 之后的诊断探针会按缝合点选择器数元素，这里统一回空列表。
-      querySelector: () => null,
-      querySelectorAll: () => [],
-      createElement: () => ({
-        dataset: {},
-        style: {},
-        textContent: '',
-        setAttribute: () => {},
-        remove: () => {},
-      }),
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    },
-  }
+  const loaded = []
+  window.__ModuleLoader__ = { load: (entry) => loaded.push(entry) }
+  window.eval(code)
+
+  // 惰性 CJS：执行 bundle 只注册 factory，模块体（**包括 CSS 注入**）在物化时
+  // 才跑。这里把两步分开，好断言「注册阶段无副作用」。
+  const stylesAfterRegister = window.document.querySelectorAll('style[data-plugin-css]').length
+  const bodyTouchedAfterRegister = window.document.body.hasAttribute(EXPECTED_ID)
+
+  if (!materialize) return { window, document: window.document, loaded, stylesAfterRegister, bodyTouchedAfterRegister }
+
+  const exported = loaded[0].factory((specifier) => {
+    throw new Error(`产物 require 了宿主模块 "${specifier}" —— 模块表答不上来就会在真机上抛错`)
+  })
+
+  return { window, document: window.document, loaded, exported, stylesAfterRegister, bodyTouchedAfterRegister }
 }
 
-// ── 捕获 __ModuleLoader__.load ─────────────────────────────────────────────
-let loaded = null
-const dom = makeDom()
+/**
+ * 关掉所有 jsdom 窗口。
+ *
+ * 必须做：诊断角标持有 `setInterval`、`pretendToBeVisual` 持有 rAF 循环，
+ * 不关的话 node 进程跑完也不会退出。
+ */
+const windows = []
+const closeAll = () => {
+  for (const window of windows) window.close()
+}
 
-const sandbox = {
-  window: {
-    __ModuleLoader__: {
-      load: (entry) => {
-        loaded = entry
+/** 收集 ctx.effect 注册的 disposer。 */
+function makeContext() {
+  const disposers = []
+  return {
+    disposers,
+    ctx: {
+      effect(callback) {
+        const disposer = callback()
+        if (typeof disposer === 'function') disposers.push(disposer)
+        return () => {}
       },
     },
-  },
-  document: dom.document,
-  localStorage: {
-    store: new Map(),
-    getItem(key) {
-      return this.store.get(key) ?? null
-    },
-    setItem(key, value) {
-      this.store.set(key, value)
-    },
-    removeItem(key) {
-      this.store.delete(key)
-    },
-  },
-  requestAnimationFrame: (cb) => setTimeout(cb, 0),
-  cancelAnimationFrame: (id) => clearTimeout(id),
-  setTimeout,
-  clearTimeout,
-  setInterval,
-  clearInterval,
-  console,
-}
-sandbox.globalThis = sandbox
-
-runInContext(code, createContext(sandbox), { filename: 'lib/client.js' })
-
-// ── 1. 注册握手 ────────────────────────────────────────────────────────────
-check(loaded !== null, 'bundle 调用了 window.__ModuleLoader__.load')
-check(loaded?.id === EXPECTED_ID, `注册 id 等于包名（${loaded?.id} === ${EXPECTED_ID}）`)
-check(typeof loaded?.factory === 'function', 'factory 是一个函数')
-
-// ── 2. factory 体无副作用 ──────────────────────────────────────────────────
-check(dom.injectedStyles.length === 0, 'factory 执行前没有注入任何 <style>（副作用应当在 apply 里）')
-check(dom.attributes.size === 0, 'factory 执行前没有写 body 属性')
-
-// ── 3. 零模块依赖：require 一调用就抛 ──────────────────────────────────────
-const poisonedRequire = (specifier) => {
-  throw new Error(`产物 require 了宿主模块 "${specifier}" —— 模块表答不上来就会在真机上抛错`)
-}
-let exported
-try {
-  exported = loaded.factory(poisonedRequire)
-  ok('factory 执行过程中一次 require 都没有发生（产物零宿主依赖）')
-} catch (error) {
-  failures.push(`factory 执行失败：${error instanceof Error ? error.message : String(error)}`)
-}
-
-// ── 4. 样式已注入且作用域正确 ──────────────────────────────────────────────
-check(dom.injectedStyles.length === 1, `注入了 1 个 <style>（实际 ${dom.injectedStyles.length}）`)
-const injected = dom.injectedStyles[0]
-check(injected?.dataset?.plugin === EXPECTED_ID, '<style> 带 data-plugin 标记（宿主卸载时会据此清理）')
-check(String(injected?.textContent).includes('backdrop-filter'), '注入的样式里含 backdrop-filter')
-check(String(injected?.textContent).includes(`body[${'data-dsh-aqua-glass'}]`), '样式以 body 总开关属性为作用域')
-
-// ── 5. apply：挂载 ─────────────────────────────────────────────────────────
-const disposers = []
-const ctx = {
-  effect(callback) {
-    const disposer = callback()
-    if (typeof disposer === 'function') disposers.push(disposer)
-    return () => {}
-  },
-}
-
-if (typeof exported?.apply === 'function') {
-  ok('exports.apply 是一个函数')
-  try {
-    exported.apply(ctx)
-  } catch (error) {
-    failures.push(`apply(ctx) 抛错：${error instanceof Error ? error.message : String(error)}`)
   }
-  check(dom.attributes.get('data-dsh-aqua-glass') === '', 'apply 后 body 带上了总开关属性')
-  check(dom.styles.get('--aqua-blur') === '18px', 'apply 后写入了 --aqua-blur 变量')
-  check(dom.styles.get('--aqua-frost') === '0.55', 'apply 后写入了 --aqua-frost 变量')
-  check(disposers.length === 1, 'apply 通过 ctx.effect 注册了 1 个 disposer')
-  check(dom.bodyChildren.length === 1, 'apply 挂上了诊断角标（临时，定稿前删）')
-  check(String(dom.bodyChildren[0]?.textContent).includes('Aqua'), '角标文案里带插件名')
-} else {
-  failures.push('入口没有导出 apply')
 }
 
-// ── 6. 卸载：完全回收 ──────────────────────────────────────────────────────
-for (const dispose of disposers) dispose()
-check(dom.attributes.has('data-dsh-aqua-glass') === false, '卸载后 body 属性已移除')
-check(dom.styles.size === 0, '卸载后 CSS 变量已清空')
-check(dom.injectedStyles.length === 1, '卸载不重复注入 <style>')
+// ── 主场景：正常启用 ───────────────────────────────────────────────────────
+const app = boot()
 
-// ── 7. 总开关关闭时不产生任何副作用 ────────────────────────────────────────
-const dom2 = makeDom()
-sandbox.document = dom2.document
-sandbox.localStorage.setItem(EXPECTED_ID, JSON.stringify({ enabled: false }))
-const loaded2 = []
-sandbox.window.__ModuleLoader__.load = (entry) => loaded2.push(entry)
-runInContext(code, createContext(sandbox), { filename: 'lib/client.js' })
-const exported2 = loaded2[0].factory(poisonedRequire)
-exported2.apply(ctx)
-check(dom2.attributes.size === 0, 'enabled:false 时 apply 不写 body 属性')
+check(app.loaded.length === 1, 'bundle 调用了 window.__ModuleLoader__.load')
+check(app.loaded[0]?.id === EXPECTED_ID, `注册 id 等于包名（${app.loaded[0]?.id} === ${EXPECTED_ID}）`)
+check(typeof app.loaded[0]?.factory === 'function', 'factory 是一个函数')
+// 惰性 CJS 的纪律：注册阶段不许碰 DOM。CSS 注入发生在物化（factory 执行）时，
+// 那是设计行为 —— 宿主卸载插件时会按 data-plugin 清掉这些标签。
+check(app.stylesAfterRegister === 0, '注册阶段未注入任何 <style>（副作用推迟到物化时）')
+check(app.bodyTouchedAfterRegister === false, '注册阶段未写 body 属性')
+ok('factory 执行过程中一次 require 都没有发生（产物零宿主依赖）')
+
+const styles = [...app.document.querySelectorAll('style[data-plugin-css]')]
+check(styles.length === 2, `注入了 2 个 <style>（每份 CSS module 一个；实际 ${styles.length}）`)
+check(styles.every((tag) => tag.dataset.plugin === EXPECTED_ID), '<style> 都带 data-plugin 标记（宿主卸载时据此清理）')
+const css = styles.map((tag) => tag.textContent).join('\n')
+check(css.includes('backdrop-filter'), '样式里含 backdrop-filter')
+check(css.includes(`body[data-dsh-aqua-glass]`), '样式以 body 总开关属性为作用域')
+check(css.includes('[data-dsh-aqua-fluid-canvas]'), '样式覆盖流体板 canvas')
+check(css.includes('dsh-aqua-fish-swim'), '样式含小鱼游动关键帧')
+
+const { ctx, disposers } = makeContext()
+check(typeof app.exported?.apply === 'function', 'exports.apply 是一个函数')
+
+let applyError = null
+try {
+  app.exported.apply(ctx)
+} catch (error) {
+  applyError = error
+}
+check(applyError === null, `apply(ctx) 不抛错${applyError === null ? '' : `：${applyError.message}`}`)
+
+const root = app.document.documentElement
+check(app.document.body.hasAttribute('data-dsh-aqua-glass'), 'apply 后 body 带上了总开关属性')
+check(root.style.getPropertyValue('--aqua-blur') === '18px', 'apply 后写入了 --aqua-blur 变量')
+check(root.style.getPropertyValue('--aqua-frost') === '0.55', 'apply 后写入了 --aqua-frost 变量')
+check(root.style.getPropertyValue('--aqua-radius') === '14px', 'apply 后写入了 --aqua-radius 变量')
+
+// ── 环境层（L3 流体背景 + 小鱼）─────────────────────────────────────────────
+const ambient = app.document.querySelector('[data-dsh-aqua-ambient]')
+check(ambient !== null, '环境层容器已 prepend 到 body')
+check(app.document.querySelector('[data-dsh-aqua-fluid-canvas]') !== null, '流体板 canvas 存在')
+const critters = app.document.querySelectorAll('[data-aqua-critter]')
+check(critters.length >= 8, `环境层里有 ${critters.length} 只装饰生物（小鱼/气泡/浮游）`)
+check(ambient?.getAttribute('aria-hidden') === 'true', '环境层对无障碍树隐藏')
+// 两层都在 body 的最前面：流体板（z-index:-1）与壁纸层都要落在应用内容之下。
+const firstChildren = [...app.document.body.children].slice(0, 2).map((el) => el.tagName + JSON.stringify([...el.attributes].map((a) => a.name)))
+check(
+  ambient !== null && [...app.document.body.children].indexOf(ambient) <= 1
+  && [...app.document.body.children].indexOf(app.document.querySelector('[data-dsh-aqua-wallpaper-layer]')) <= 1,
+  `环境层与壁纸层都在 body 最前面（实际前两个：${firstChildren.join(' / ')}）`,
+)
+
+// ── 诊断角标（临时）───────────────────────────────────────────────────────
+const badge = app.document.getElementById('dsh-aqua-glass-diagnostic')
+check(badge !== null, '诊断角标已挂载（临时，定稿前删）')
+check(String(badge?.textContent).includes('Aqua'), '角标文案里带插件名')
+check(String(badge?.textContent).includes('框架层'), '角标列出了框架层探针')
+
+check(disposers.length === 1, 'apply 通过 ctx.effect 注册了 1 个 disposer')
+
+// ── 卸载：完全回收 ────────────────────────────────────────────────────────
+for (const dispose of disposers) dispose()
+check(app.document.body.hasAttribute('data-dsh-aqua-glass') === false, '卸载后 body 属性已移除')
+check(root.style.getPropertyValue('--aqua-blur') === '', '卸载后 CSS 变量已清空')
+check(app.document.querySelector('[data-dsh-aqua-ambient]') === null, '卸载后环境层 DOM 已移除')
+check(app.document.querySelector('[data-dsh-aqua-wallpaper-layer]') === null, '卸载后壁纸层 DOM 已移除')
+check(app.document.getElementById('dsh-aqua-glass-diagnostic') === null, '卸载后诊断角标已移除')
+check(app.document.querySelectorAll('style[data-plugin-css]').length === 2, '卸载不重复注入 <style>')
+
+// ── 总开关关闭：不产生任何副作用 ──────────────────────────────────────────
+const off = boot({ storage: { [EXPECTED_ID]: JSON.stringify({ enabled: false }) } })
+const offCtx = makeContext()
+off.exported.apply(offCtx.ctx)
+check(off.document.body.hasAttribute('data-dsh-aqua-glass') === false, 'enabled:false 时不写 body 属性')
+check(off.document.querySelector('[data-dsh-aqua-ambient]') === null, 'enabled:false 时不挂环境层')
+check(off.document.getElementById('dsh-aqua-glass-diagnostic') === null, 'enabled:false 时不挂角标')
+
+// ── 配置可调：hue/depth/blur 生效 ─────────────────────────────────────────
+const tuned = boot({
+  storage: { [EXPECTED_ID]: JSON.stringify({ blur: 4, radius: 2, hue: 100, depth: 80 }) },
+})
+tuned.exported.apply(makeContext().ctx)
+const tunedRoot = tuned.document.documentElement
+check(tunedRoot.style.getPropertyValue('--aqua-blur') === '4px', 'localStorage 的 blur 生效')
+check(tunedRoot.style.getPropertyValue('--aqua-radius') === '2px', 'localStorage 的 radius 生效')
 
 // ── 结果 ───────────────────────────────────────────────────────────────────
+closeAll()
+
 if (failures.length > 0) {
   console.error(`\n冒烟加载失败（${failures.length} 项）：`)
   for (const failure of failures) console.error(`  ✗ ${failure}`)
   process.exit(1)
 }
-console.log('\n冒烟加载通过：产物可注册、零 require、apply 可挂载可回收')
+console.log('\n冒烟加载通过：产物可注册、零 require、apply 可挂载可回收、环境层与角标就位')

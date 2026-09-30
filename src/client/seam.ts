@@ -40,6 +40,20 @@ export const CONVERSATION = ":is([data-pane='conversation'], [class*='centerCol'
  */
 export const SIDEBAR_SURFACE = `${SIDEBAR} > div`
 
+/**
+ * 应用框架层：宿主在这里画 `--dsw-alias-bg-base` 底色。它若不透明，流体
+ * 背景板被整块挡住，玻璃也就跟着没了 —— 所以必须置为透明。
+ *
+ * 0.2.0-rc.2 实测：`dsh-client-ui-layout` 产物里**只有一个**类名含 `frame`
+ * （`.BynINW_frame`，声明 `background:var(--dsw-alias-bg-base)`）。哈希前缀
+ * 会随重建变化，但 lightningcss 的命名格式是 `[hash]_[local]`，`_frame`
+ * 后缀是稳的。
+ *
+ * ⚠️ 这是本项目**唯一**没有 `data-*` 兜底的缝合点。宿主哪天给框架层补了语义
+ * 属性，应立刻改用它。已登记在 docs/CONTRACT-AUDIT.md。
+ */
+export const FRAME = "[class*='_frame']"
+
 // ── 表面（S0 三个验收面） ─────────────────────────────────────────────────
 
 /** 会话区顶栏。 */
@@ -76,6 +90,7 @@ export const SEAM = {
   SIDEBAR,
   CONVERSATION,
   SIDEBAR_SURFACE,
+  FRAME,
   TOPBAR,
   COMPOSER_CARD,
   NEW_SESSION,

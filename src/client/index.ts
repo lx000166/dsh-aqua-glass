@@ -12,6 +12,7 @@
  *
  * @module client
  */
+import { mountAmbient } from './ambient.ts'
 import { readConfig, type GlassConfig } from './config.ts'
 import { mountDiagnostic } from './diagnostic.ts'
 import { createAttributeLease } from './dom-lease.ts'
@@ -19,6 +20,7 @@ import { BODY_ATTRIBUTE } from './seam.ts'
 // 副作用导入：构建期由 lightningcss 编译成哈希类名映射，并把样式文本以
 // <style data-plugin="dsh-aqua-glass"> 注入；宿主卸载插件时会清掉它。
 import './material.module.css'
+import './ambient.module.css'
 
 /** 包版本，由 tsdown 的 define 注入；诊断角标用它确认页面跑的是哪一版产物。 */
 declare const __AQUA_VERSION__: string
@@ -67,6 +69,7 @@ export function apply(ctx: ClientContext): void {
 
     let lease: ReturnType<typeof createAttributeLease> | null = null
     let unmountDiagnostic: (() => void) | null = null
+    let unmountAmbient: (() => void) | null = null
 
     const mount = (): void => {
       if (lease !== null) return
@@ -75,7 +78,9 @@ export function apply(ctx: ClientContext): void {
       writeTokens(config)
       lease = createAttributeLease(body, BODY_ATTRIBUTE)
       lease.acquire()
-      // 角标在总开关属性之后挂，所以「看到角标」等价于「apply 跑到底了」。
+      // 总开关属性先落，样式表立即生效；流体板随后挂上（WebGL 初始化是同步的）。
+      unmountAmbient = mountAmbient({ hue: config.hue, depth: config.depth })
+      // 角标最后挂，所以「看到角标」等价于「apply 跑到底了」。
       if (config.debug) unmountDiagnostic = mountDiagnostic(VERSION)
     }
 
@@ -87,6 +92,9 @@ export function apply(ctx: ClientContext): void {
       document.removeEventListener('DOMContentLoaded', onReady)
       unmountDiagnostic?.()
       unmountDiagnostic = null
+      // 环境层先撤：它的 dispose 会停掉渲染循环并移除自己 prepend 的 DOM。
+      unmountAmbient?.()
+      unmountAmbient = null
       lease?.release()
       lease = null
       clearTokens()
