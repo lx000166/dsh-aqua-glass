@@ -784,6 +784,96 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] > div:has([class*='hoverContent']
   backdrop-filter: var(--aqua-filter);
 }
 
+/* ── 「已编辑 N 个文件」里悬停文件行的**差异预览卡** ──────────────────────
+ *
+ * 它同样是 HoverCard（`variant="preview"`）portal 到 body，容器同时挂
+ * `.card` 与 `.preview` 两个类：前者写死 `--dsw-hovercard-bg: #2C2C2E`，
+ * 后者把背景改成 `var(--dsw-alias-bg-layer-1)`（**不透明层色**）——
+ * 于是这张卡一直是实心的（用户报障：「已编辑 xxx 个文件的块的子弹出层还是实心的」）。
+ *
+ * `--dsw-alias-bg-layer-*` 是全局禁区（35+ 消费点里大量是输入框），所以照旧
+ * **只命中元素本身**。锚点用卡片内容自带的宿主语义属性 `data-changes-hover-preview`
+ * （ChangedFiles.tsx 里 `ChangedFilePreview` 的根节点，比哈希类名稳）。
+ * 卡片是 body 的直接子元素，所以选择器收紧到 `> div`。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] > div:has([data-changes-hover-preview]) {
+  background: var(--aqua-glass);
+  backdrop-filter: var(--aqua-filter);
+  box-shadow: var(--aqua-inset), var(--aqua-shadow);
+}
+
+/* ── 应用弹窗：设置面板 + Modal ──────────────────────────────────────────
+ *
+ * 两者是**两套实现**：设置面板自带 `.overlay/.mask/.panel`（ui-settings-general
+ * 的 SettingsRoot），其余弹窗走 ui-primitives 的 `Modal`（`.root/.mask/.dialog`）。
+ * 但两边都带 `role="dialog"`，所以一个标准 ARIA 锚点就能全覆盖。
+ *
+ * 底色都来自**不透明的层色**（`.panel` 与 `.dialog` 都是
+ * `background: var(--dsw-alias-bg-layer-2)`）—— 那是全局禁区，照旧只命中元素本身。
+ *
+ * ⚠️ 玻璃画在 `::before` 上、弹窗自己不碰 `backdrop-filter`：设置页里有下拉菜单，
+ *    弹窗一旦成为 backdrop root，菜单的模糊就会被吃掉（发送卡踩过同一个坑）。
+ *    `::before` 敢用 `z-index: -1` 的前提是弹窗自己成层叠上下文 ——
+ *    两套外壳都是 `position: relative; z-index: 1`，成立。
+ * ⚠️ 环用 `padding: 1px` + mask（与卡片同款配方），`corner-shape: inherit` 必写。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog'] {
+  position: relative;
+  border: none;
+  corner-shape: var(--aqua-corner);
+  /* 宿主的层色在此掐掉；填充交给下面的伪元素 */
+  background: transparent;
+  box-shadow: var(--aqua-shadow);
+
+  /* 弹窗**内部**的控件跟着一起玻璃化。
+   *
+   * 面板里那些看着"实心"的东西其实是控件，不是行：白色药丸（完全权限 / 中文 /
+   * 标准 / 编辑快捷键）是 ui-primitives 的 `Pill`（`background: var(--dsw-alias-bg-layer-2)`），
+   * 外观那三张卡是 `SegmentedControl`（同族层色），设置内容卡走
+   * `--dsw-alias-settings-card-fill`（base.css 里就等于 layer-2）。
+   *
+   * 这两档层色**不能在全局动** —— `--dsw-alias-bg-layer-2` 有 17+ 个消费点
+   * （轨迹表、浏览器视图、文档预览、输入框、徽章…），全局降透明会把它们一起改糊。
+   * 但在**弹窗作用域内**是安全的：弹窗里的控件本来就压在玻璃上，背后是模糊过的底。
+   *
+   * 层级关系照宿主保留：layer-1 给内容凹槽档（--aqua-well），
+   * layer-2 抬升一档（--aqua-surface）—— 宿主原本也是"抬起的面更亮"。
+   *
+   * ⚠️ `--dsw-alias-settings-card-fill` 必须单独写：它在 base.css 里声明为
+   * `var(--dsw-alias-bg-layer-2)`，那是在 body 上就**解析成结果**再继承下来的，
+   * 所以在这里改 layer-2 影响不到它。 */
+  --dsw-alias-bg-layer-1: var(--aqua-well);
+  --dsw-alias-bg-layer-2: var(--aqua-surface);
+  --dsw-alias-settings-card-fill: var(--aqua-well);
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  corner-shape: inherit;
+  background: var(--aqua-glass);
+  box-shadow: var(--aqua-inset);
+  backdrop-filter: var(--aqua-filter);
+  pointer-events: none;
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  corner-shape: inherit;
+  padding: 1px;
+  background: var(--aqua-edge);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: blur(var(--aqua-edge-blur));
+  pointer-events: none;
+}
+
 /* ── 输入框左下的「+」附件按钮 ────────────────────────────────────────────
  *
  * 宿主：`.add { border-radius: 999px; background: var(--dsw-specific-selector) }`

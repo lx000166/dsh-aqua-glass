@@ -82,6 +82,20 @@ export const COMPOSER_CARD = '[data-composer-card]'
  */
 export const MENU_SURFACE = '[data-menu-material]'
 
+/**
+ * 「已编辑 N 个文件」里悬停文件行的**差异预览卡**（HoverCard `variant="preview"`，
+ * portal 到 `<body>`）。容器底色是 `--dsw-alias-bg-layer-1`（不透明层色，全局禁区），
+ * 所以只能命中外层元素 —— 卡片内容自带这个宿主语义属性，用它反查容器。
+ */
+export const CHANGES_PREVIEW = '[data-changes-hover-preview]'
+
+/**
+ * 应用弹窗。设置面板（ui-settings-general 的 SettingsRoot）与其余弹窗
+ * （ui-primitives 的 Modal）是两套外壳，但都带这个标准 ARIA role，
+ * 所以一个锚点全覆盖。两边的底色都是 `--dsw-alias-bg-layer-2`（全局禁区）。
+ */
+export const DIALOG = "[role='dialog']"
+
 /** 新建会话按钮。 */
 export const NEW_SESSION = `button[class*='newSession']`
 
@@ -129,6 +143,8 @@ export const SEAM = {
   COMPOSER_CARD,
   COMPOSER_SEAT,
   MENU_SURFACE,
+  CHANGES_PREVIEW,
+  DIALOG,
   NEW_SESSION,
   WORDMARK,
   SETTINGS_TRIGGER,

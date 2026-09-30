@@ -386,14 +386,20 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
       /--dsw-specific-menu:\s*rgb\(240 246 253 \/ 0?\.72\)/,
     )
     expect(clean, '深色态浮层材质缺失').toMatch(/--dsw-specific-menu:\s*rgb\(30 40 54 \/ 0?\.72\)/)
-    // 关键防线：bg-layer-* 一个字都不许出现。
+    // 关键防线：bg-layer-* 不许**全局**覆盖。
+    // 唯一例外是弹窗作用域（`[role='dialog']`）—— 那里的控件本来就压在玻璃上，
+    // 背后是模糊过的底；详见下一条用例。所以先把弹窗那条规则摘掉再扫。
+    const outsideDialogs = clean.replace(
+      /body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{[^}]*\}/g,
+      '',
+    )
     for (const forbidden of [
       '--dsw-alias-bg-layer-1:',
       '--dsw-alias-bg-layer-2:',
       '--dsw-alias-bg-layer-3:',
       '--dsw-alias-settings-card-fill:',
     ]) {
-      expect(clean, `不要覆盖 ${forbidden}（35+ 消费点里大量是输入框）`).not.toContain(forbidden)
+      expect(outsideDialogs, `不要覆盖 ${forbidden}（35+ 消费点里大量是输入框）`).not.toContain(forbidden)
     }
   })
 
@@ -461,8 +467,39 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
       }
     }
     expect(clean, '基础档滚动条缺少杆身内缩').toContain('--dsh-scrollbar-thumb-border: 1px')
-    // 这两条与滚动条无关，是同一批 token 旁边的禁区，顺手再钉一次。
-    expect(clean, '不要碰 bg-layer-*').not.toContain('--dsw-alias-bg-layer-1:')
+    // 这两条与滚动条无关，是同一批 token 旁边的禁区，顺手再钉一次
+    // （弹窗作用域那条例外在上面那条用例里单独放行）。
+    expect(
+      clean.replace(/body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{[^}]*\}/g, ''),
+      '不要碰 bg-layer-*',
+    ).not.toContain('--dsw-alias-bg-layer-1:')
+  })
+
+  it('弹窗与差异预览卡玻璃化（锚点 role=dialog / data-changes-hover-preview）', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = squash(clean)
+
+    // 「已编辑 N 个文件」的差异预览卡：容器底色是 --dsw-alias-bg-layer-1（不透明层色），
+    // 只能命中元素本身，锚点用卡片内容自带的宿主属性反查。
+    expect(rule, '差异预览卡没接上玻璃').toMatch(
+      /> div:has\(\[data-changes-hover-preview\]\)\s*\{[^}]*backdrop-filter/,
+    )
+
+    // 弹窗（设置面板 / Modal）：底色是 --dsw-alias-bg-layer-2，同样只命中元素本身。
+    expect(rule, '弹窗没掐掉宿主层色').toMatch(/\[role='dialog'\]\s*\{[^}]*background: transparent/)
+    expect(rule, '弹窗玻璃没画在伪元素上').toMatch(/\[role='dialog'\]::before\s*\{[^}]*backdrop-filter/)
+    expect(rule, '弹窗缺描边环').toMatch(/\[role='dialog'\]::after\s*\{[^}]*mask-composite: exclude/)
+    // ⚠️ 弹窗自己**绝不能**带 backdrop-filter：设置页里有下拉菜单，
+    // 弹窗一旦成为 backdrop root，菜单的 blur 就会被静默吃掉（发送卡踩过同一个坑）。
+    const dialogRule = clean.match(/body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(dialogRule, '弹窗规则没解析出来').not.toBe('')
+    expect(dialogRule, '弹窗自己不许多带 backdrop-filter（会吃掉内部菜单的模糊）').not.toContain('backdrop-filter')
+    // 弹窗**内部**的控件跟着一起玻璃化：药丸（Pill）与外观选择卡走 layer-2，
+    // 设置内容卡走 settings-card-fill。这两档层色全局禁区，只在弹窗作用域内放行。
+    expect(dialogRule, '弹窗内的控件底色没接上玻璃').toContain('--dsw-alias-bg-layer-2: var(--aqua-surface)')
+    expect(dialogRule).toContain('--dsw-alias-bg-layer-1: var(--aqua-well)')
+    expect(dialogRule, 'settings-card-fill 必须单独写（它在 base.css 里已解析成 layer-2 的值）')
+      .toContain('--dsw-alias-settings-card-fill: var(--aqua-well)')
   })
 
   it('侧栏按钮走按钮专用的一档（比卡片更淡），不是卡片玻璃', () => {
@@ -627,8 +664,10 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     // 才生效（写祖先会被它自己的声明压掉 —— 与 blur 那次同一个坑）。
     expect(clean).toMatch(/\[data-changed-files\]\s*\{[^}]*--changes-fill:\s*transparent/)
     expect(clean).toMatch(/\[data-changed-files\]\s*\{[^}]*background:\s*var\(--aqua-well\)/)
-    // 依旧一个字都不许碰 bg-layer-*。
-    expect(clean).not.toContain('--dsw-alias-bg-layer-1:')
+    // 依旧一个字都不许碰 bg-layer-*（弹窗作用域那条例外见对应的用例）。
+    expect(
+      clean.replace(/body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{[^}]*\}/g, ''),
+    ).not.toContain('--dsw-alias-bg-layer-1:')
   })
 
   it('我发出的对话气泡改走半透明（宿主默认不透明）', () => {
