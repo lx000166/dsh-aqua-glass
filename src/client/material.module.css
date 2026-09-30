@@ -533,25 +533,41 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] {
   --dsw-specific-menu: rgb(30 40 54 / 0.72);
 }
 
-/* ── 共享菜单表面内部：把「其它浮层」的填充退回菜单自身材质 ───────────────
+/* ── 菜单底部那条提示带：不叠底色，改成内容自己溶解 ───────────────────────
  *
- * 菜单底部那条「下面还有内容」的渐隐提示（ui-input-trigger 的
+ * 「下面还有内容」的渐隐提示（ui-input-trigger 的
  * `.menu[data-overflow-below]::after`）画的是
- * `linear-gradient(to bottom, transparent, var(--dsw-specific-menu))`。
- * 宿主在 Windows 上把这个 token 别名成 `--dsw-menu-surface-fill`，**提示的终点色
- * 就是菜单本体**，所以渐变是融进菜单里的（那 16px 只是很轻的一道收尾）。
+ * `linear-gradient(to bottom, transparent, var(--dsw-specific-menu))`，
+ * 位置 `left: 4px; right: 14px; bottom: 4px; height: 16px`。
  *
- * 我们把它调成了 72%（见上一节），于是提示的终点比菜单本体更实、色相也更冷：
- * 菜单底部多出一条 16px 的深色带，滚到底、提示消失时又没有了
- * （用户实测报障：症状正是「打开时底部一条阴影，滚到底就消失」）。
+ * 它有两个问题，本轮各修一个：
  *
- * 修法不是去改那条渐变（那是宿主的），而是在**菜单表面内部**把这个 token 退回去
- * —— 等价于「菜单内部一律按菜单材质算」。锚点 `data-menu-material` 是 MenuSurface
- * 自己发的属性（ui-primitives/MenuSurface.tsx，值恒为 `translucent`），
- * 所有共享菜单表面都有它；菜单**之外**那 18 个消费方不受影响，
- * 我们想要的浮层玻璃照旧。 */
+ * ① 终点色。宿主在 Windows 上把该 token 别名成 `--dsw-menu-surface-fill`，
+ *    **提示的终点色就是菜单本体**；我们早先把它改成了 72% 冷色，于是提示
+ *    比菜单更实更蓝（`rgba(30,40,54,.72)` vs `rgba(67,69,74,.45)`）。
+ *    修法：菜单表面**内部**把 token 退回去（第一条规则）。
+ *    锚点 `data-menu-material` 是 MenuSurface 自己发的属性
+ *    （ui-primitives/MenuSurface.tsx，值恒为 `translucent`），所有共享菜单表面
+ *    都有它；菜单**之外**那 18 个消费方不受影响，我们想要的浮层玻璃照旧。
+ *
+ * ② 但只修色还不够 —— **叠加本身**就是一条带子：菜单材质是 0.45，提示再叠
+ *    0.45，合起来 ≈ 0.70，底部那 16px 必然比周围实（用户复测：「还是有」；
+ *    带子两侧内缩 4px/14px 正是上面那对 left/right 的指纹）。
+ *    所以真正要停掉的是「再加一层底色」：把 `::after` 的 `background` 置空，
+ *    改用**遮罩**让滚动内容自己淡出 —— 内容溶解进玻璃里，底部不多出任何密度。
+ *    这才是磨砂面板上正确的收尾方式。
+ *    `[role='listbox']` 是 MenuView 视口上的标准 ARIA role（比哈希类名稳）；
+ *    `data-overflow-below` 由宿主只在「下面还有内容」时挂上，滚到底自动撤销。 */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-menu-material] {
   --dsw-specific-menu: var(--dsw-menu-surface-fill);
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-menu-material][data-overflow-below]::after {
+  background: none;
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-menu-material][data-overflow-below] [role='listbox'] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
 }
 
 /* 工具卡与代码块标题栏：**它们用的都是全局基色 `--dsw-alias-bg-base`**，

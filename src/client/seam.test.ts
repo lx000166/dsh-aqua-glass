@@ -368,26 +368,40 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
   })
 
   /**
-   * ⚠️ 共享菜单表面**内部**必须把 `--dsw-specific-menu` 退回菜单自身材质。
+   * ⚠️ 菜单底部那条 16px 提示带：**两步都要守住**。
    *
-   * 菜单底部那条「下面还有内容」的渐隐提示（ui-input-trigger 的
-   * `.menu[data-overflow-below]::after`）画的是
-   * `linear-gradient(transparent, var(--dsw-specific-menu))` —— 提示的终点色
-   * 就是它要融进去的底色。宿主在 Windows 上把该 token 别名成
-   * `--dsw-menu-surface-fill`（94% 那两条是 `html[data-platform='darwin']` 专属），
-   * 我们改成 72% 之后，提示终点比菜单本体更实、色相更冷，菜单底部就多出
-   * 一条 16px 的深色带，滚到底（提示消失）时又没了 —— 用户实测报障。
+   * 宿主 `MenuView` 的 `.menu[data-overflow-below]::after` 画的是
+   * `linear-gradient(transparent, var(--dsw-specific-menu))`，
+   * 位置 `left: 4px; right: 14px; bottom: 4px; height: 16px`。
+   *
+   * ① 终点色：宿主在 Windows 上把该 token 别名成 `--dsw-menu-surface-fill`
+   *    （94% 那两条是 `html[data-platform='darwin']` 专属），我们改成 72% 后
+   *    提示比菜单本体更实更冷 —— 所以菜单内部要退回去。
+   * ② 但**叠加本身**就是一条带子：材质 0.45 再叠 0.45 ≈ 0.70。只改颜色不够
+   *    （用户复测「还是有」），必须把提示的底色停掉、改用遮罩淡出内容。
    *
    * `data-menu-material` 由 ui-primitives 的 MenuSurface 自己发出，
-   * 所以这条覆盖对**所有**共享菜单表面生效，且不波及菜单之外那 18 个消费方。
+   * 所以这些覆盖对**所有**共享菜单表面生效，且不波及菜单之外那 18 个消费方。
    */
-  it('共享菜单内部把 --dsw-specific-menu 退回菜单材质（否则底部渐隐提示露出一条带子）', () => {
+  it('菜单底部提示带：token 退回菜单材质 + 提示不再叠底色（改遮罩淡出）', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const rule = clean.match(
       /body\[data-dsh-aqua-glass\] \[data-menu-material\]\s*\{([^}]*)\}/,
     )?.[1] ?? ''
     expect(rule, '菜单表面内的 token 回退规则没解析出来').not.toBe('')
     expect(rule, '菜单内部必须用菜单自身材质').toContain('--dsw-specific-menu: var(--dsw-menu-surface-fill)')
+
+    const hintRule = clean.match(
+      /body\[data-dsh-aqua-glass\] \[data-menu-material\]\[data-overflow-below\]::after\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(hintRule, '提示规则的反覆盖没解析出来').not.toBe('')
+    expect(hintRule, '提示不能再画底色（那正是密度带的来源）').toContain('background: none')
+
+    const maskRule = clean.match(
+      /body\[data-dsh-aqua-glass\] \[data-menu-material\]\[data-overflow-below\] \[role='listbox'\]\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(maskRule, '菜单视口的遮罩规则没解析出来').not.toBe('')
+    expect(maskRule, '改用遮罩让内容自己淡出').toContain('mask-image')
   })
 
   it('侧栏按钮走按钮专用的一档（比卡片更淡），不是卡片玻璃', () => {
