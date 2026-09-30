@@ -160,11 +160,21 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule).toMatch(/\[data-aqua-sidebar-root\]\s*\{[^}]*background: transparent/)
   })
 
-  it('原生标题栏底色跟随主题（覆盖桌面端 preload 读取的那个 token）', () => {
+  it('原生标题栏设为透明（nav 栏才能与流体融为一体）', () => {
     const rule = squash(MATERIAL_CSS)
-    // preload 用隐藏探针读 --dsw-specific-sidebar-fill 的计算值当标题栏底色。
-    const hits = rule.match(/--dsw-specific-sidebar-fill:/g) ?? []
-    expect(hits.length, '浅深两态各要一条 --dsw-specific-sidebar-fill 覆盖').toBeGreaterThanOrEqual(2)
+    // preload 用隐藏探针读 --dsw-specific-sidebar-fill 的计算值当标题栏底色；
+    // 主进程的 validColor 正则接受 rgba(0, 0, 0, 0)，窗口本身 transparent: true。
+    expect(rule).toMatch(/--dsw-specific-sidebar-fill:\s*transparent/)
+  })
+
+  it('三处卡片用渐变描边而不是实线', () => {
+    const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    // 渐变描边的实现：1px 透明边框 + padding-box/border-box 两层背景。
+    expect(rule, '缺 --aqua-edge 渐变定义').toContain('--aqua-edge:')
+    const layered = rule.match(/padding-box/g) ?? []
+    expect(layered.length, '侧栏/顶栏/发送栏三处都要用两层背景做渐变描边').toBeGreaterThanOrEqual(3)
+    // 侧栏列的实线描边必须已经搬进 ::before 的渐变层。
+    expect(rule).toMatch(/::before\s*\{[^}]*border:\s*1px solid transparent/)
   })
 })
 

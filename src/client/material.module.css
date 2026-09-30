@@ -43,6 +43,16 @@ body[data-dsh-aqua-glass] {
   --aqua-inset: inset 0 1px 0 rgb(255 255 255 / 0.5);
   --aqua-inset-dark: inset 0 1px 0 rgb(255 255 255 / 0.07);
   --aqua-filter: blur(var(--aqua-blur));
+  /* 液态玻璃渐变描边：左上高光 → 中段透明 → 右下冷色反光 → 收口高光。
+     作为 `border-box` 背景层铺在 1px 透明边框下（见各卡片的 background 两层写法），
+     这样既能跟随 border-radius，又不需要 mask。 */
+  --aqua-edge: linear-gradient(
+    140deg,
+    rgb(255 255 255 / 0.92) 0%,
+    rgb(255 255 255 / 0.18) 32%,
+    rgb(158 205 255 / 0.38) 64%,
+    rgb(255 255 255 / 0.78) 100%
+  );
 }
 
 /* 深色态：中性冷灰而非蓝 —— 否则磨砂度拉满会露出蓝底，像一块蓝板 */
@@ -53,6 +63,13 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] {
   --aqua-line: var(--aqua-line-dark);
   --aqua-shadow: var(--aqua-shadow-dark);
   --aqua-inset: var(--aqua-inset-dark);
+  --aqua-edge: linear-gradient(
+    140deg,
+    rgb(255 255 255 / 0.34) 0%,
+    rgb(255 255 255 / 0.05) 34%,
+    rgb(140 190 255 / 0.26) 66%,
+    rgb(255 255 255 / 0.22) 100%
+  );
 }
 
 /* ── 原生标题栏（Windows 顶部那条带子）─────────────────────────────────
@@ -62,24 +79,20 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] {
  * 它是官方 14 个可覆盖 token 之一（"Sidebar column and title-row background"），
  * 上游 Aqua 没动过它，标题栏因此一直是原生灰，和主题脱节。
  *
- * 两个必须知道的限制：
- * 1. **只能是纯色** —— preload 走 canvas 把颜色拍平（alpha 被丢弃），
- *    所以做不到透明或模糊，只能给一个与流体协调的实色。
- * 2. preload 监听 `document.head` 的子树变化，我们注入的 `<style>` 会触发它
- *    重算，因此**跟随深浅两态自动更新**，不需要额外动作。
+ * ⚠️ 早期判断错了：这里**可以做到完全透明**。preload 的 `nativeColor()` 走
+ * canvas 采样但**不丢 alpha**（`clearRect` → 填充 → `getImageData` 原样读回），
+ * 主进程校验正则 `/^(?:#[\da-f]{3,8}|rgba?\([\d.,%\s]+\))$/` 也接受
+ * `rgba(0, 0, 0, 0)`；窗口本身已是 `frame: false` + `transparent: true`，
+ * `titleBarOverlay` 的默认色就是 `#00000000`。给透明值就能让标题栏透出流体，
+ * 与主体完全融为一体 —— 之前试的两个实色（#eef4fb / #cfe6e2）之所以"没去掉
+ * 背景"，就是方向错了。
  *
- * ⚠️ 首版给了 `#eef4fb`，与原生 `--dsw-static-neutral-bluish-50` 几乎一样，
- * 肉眼看不出变化（"顶栏颜色还在"）。这里换成**明显带青绿的实色**，让机制
- * 可见；要调就改这两条（必须是纯色）。
+ * preload 监听 `document.head` 的子树变化，注入的 `<style>` 会触发它重算；
+ * 透明值与配色无关，深浅两态共用一条即可。
  *
- * 另注：这个变量同时是侧栏内容根的默认底色，但那条已被上面的规则置透明，
- * 实际可见影响只在标题栏。 */
+ * 另注：这个变量同时是侧栏内容根的默认底色，那条已被下面的规则置透明。 */
 body[data-dsh-aqua-glass] {
-  --dsw-specific-sidebar-fill: #cfe6e2;
-}
-
-body[data-dsh-aqua-glass][data-ds-dark-theme] {
-  --dsw-specific-sidebar-fill: #0f1c1f;
+  --dsw-specific-sidebar-fill: transparent;
 }
 
 /* ── 让 L3 流体背景板透出来 ───────────────────────────────────────────── */
@@ -143,10 +156,12 @@ body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::bef
   inset: 0;
   /* 落在列内容之下。 */
   z-index: -1;
-  border: 1px solid var(--aqua-line);
-  border-right: 1px solid rgb(150 190 245 / 0.65);
+  /* 1px 透明边框 + 两层背景 = 跟随圆角的渐变描边，不需要 mask。 */
+  border: 1px solid transparent;
   border-radius: inherit;
-  background: var(--aqua-glass);
+  background:
+    linear-gradient(var(--aqua-glass), var(--aqua-glass)) padding-box,
+    var(--aqua-edge) border-box;
   backdrop-filter: var(--aqua-filter);
   pointer-events: none;
 }
@@ -189,20 +204,19 @@ body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'
 /* ── 会话顶栏：悬浮玻璃卡，配方与发送栏同款 ───────────────────────────── */
 
 body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+  position: relative;
   margin: 12px 16px 0;
   padding: 10px 16px 8px;
-  border: 1px solid var(--aqua-line);
-  /* 下边缘向聊天区敞开：去掉底边框与原分隔线 */
-  border-bottom-color: transparent;
+  border: 1px solid transparent;
   border-radius: 20px;
-  background: var(--aqua-glass);
+  background:
+    linear-gradient(var(--aqua-glass), var(--aqua-glass)) padding-box,
+    var(--aqua-edge) border-box;
   box-shadow: var(--aqua-inset), var(--aqua-shadow);
   backdrop-filter: var(--aqua-filter);
 }
 
 body[data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
-  border-color: var(--aqua-line-dark);
-  border-bottom-color: transparent;
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
 }
 
@@ -211,15 +225,16 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [c
 body[data-dsh-aqua-glass] [data-composer-card] {
   position: relative;
   z-index: 8;
-  background: var(--aqua-glass);
-  border: 1px solid var(--aqua-line);
+  border: 1px solid transparent;
   border-radius: 24px;
+  background:
+    linear-gradient(var(--aqua-glass), var(--aqua-glass)) padding-box,
+    var(--aqua-edge) border-box;
   box-shadow: var(--aqua-inset), 0 10px 36px rgb(19 45 83 / 0.16);
   backdrop-filter: var(--aqua-filter);
 }
 
 body[data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
-  border-color: var(--aqua-line-dark);
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
 }
 
@@ -227,6 +242,14 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
    只把它自带的不透明底拿掉 —— 那正是「发送栏下面那块白色」。
    发送栏自己仍是一张独立的玻璃卡。 */
 body[data-dsh-aqua-glass] [data-aqua-stats] {
+  background: transparent;
+}
+
+/* 侧栏底部（设置行 + 用户区）：宿主在这几层上画着自己的底色，
+   会在用户名上方留下一块白 —— 统一置透明，让卡片玻璃透上来。 */
+body[data-dsh-aqua-glass] [class*='footArea'],
+body[data-dsh-aqua-glass] [class*='footerActions'],
+body[data-dsh-aqua-glass] [data-slot='sidebar.settings'] {
   background: transparent;
 }
 
