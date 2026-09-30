@@ -80,6 +80,12 @@ const looseClient = loose(client)
 for (const needle of ['data-dsh-aqua-glass', "class*='sidebarCol'", "class*='centerCol'", '[data-composer-card]', "header[class*='header']"]) {
   if (!looseClient.includes(loose(needle))) failures.push(`lib/client.js 里找不到缝合点 ${JSON.stringify(needle)}`)
 }
+// 发送卡的玻璃必须真的落在 `::before` 上：卡自己是 `conversation.input.overlay`
+// 槽的容器，卡上带 backdrop-filter 会让卡内浮层（"/"、"@" 候选菜单）的模糊
+// 静默失效。lightningcss 会把 `::before` 压成 `:before`，所以按压缩后的写法核对。
+if (!looseClient.includes(loose('[data-composer-card]:before'))) {
+  failures.push('lib/client.js 里找不到发送卡的 ::before 玻璃规则 —— 卡内浮层的模糊会失效')
+}
 
 // ── 5. 宿主半侧 ────────────────────────────────────────────────────────────
 const index = read('../lib/index.js')

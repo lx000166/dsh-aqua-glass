@@ -355,20 +355,54 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pan
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
 }
 
-/* ── 发送栏 ───────────────────────────────────────────────────────────── */
-
+/* ── 发送栏 ─────────────────────────────────────────────────────────────
+ *
+ * ⚠️ 玻璃必须画在 `::before` 上，卡本身**绝不能**带 `backdrop-filter`。
+ *
+ * `backdrop-filter` 会让元素成为 **backdrop root**：它的后代自己的
+ * `backdrop-filter` 只能采样「该元素内部已经画好的东西」。而发送卡恰好是
+ * **浮层的容器** —— 宿主把 `conversation.input.overlay` 槽（InputBar 的
+ * `.overlayAnchor`）放在卡里，"/" 与 "@" 的候选菜单（ui-input-trigger 的
+ * MenuView）和 popupSelect 面板都从这里长出来，位置是
+ * `bottom: calc(100% + 4px)` —— **整个浮层在卡的上边缘之外**。
+ *
+ * 于是菜单那层 `.material`（宿主 `--dsw-menu-surface-fill` 58% +
+ * `--dsw-menu-backdrop-filter: blur(40px) saturate(150%)`）模糊采样到的是
+ * 「卡外面」的空：宿主那句 blur 静默失效，只剩一层 58% 半透明白，
+ * 底下的对话文字原样透上来，完全读不清。
+ * （Chromium 最小复现已确认：仅把卡的 backdrop-filter 挪到伪元素，
+ *  浮层立刻恢复磨砂；卡本身观感逐像素不变。）
+ *
+ * 修法沿用侧栏那一套（见上面侧栏段的说明）：填充、模糊、内高光一起搬到
+ * `::before`，卡本身只留几何与外阴影。顺带把卡内两颗按钮
+ * （`[data-aqua-add]`、发送键）同样被压死的模糊一起救回来。
+ *
+ * ⚠️ 内高光 `--aqua-inset` 必须跟着走：负 z-index 的伪元素画在**元素自己的
+ *    背景与 inset 阴影之上**，留在卡上会被那层 30% 白糊掉。
+ *    （`--aqua-inset` 在深色块里已被重绑到 `--aqua-inset-dark`，无需再写一条深色规则。）
+ * ⚠️ 也不能把填充留在卡上：那样伪元素模糊到的是卡自己那块纯色底，等于没糊。 */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card] {
   position: relative;
   z-index: 8;
   border: none;
   border-radius: 24px;
+  box-shadow: 0 10px 36px rgb(19 45 83 / 0.16);
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
   background: var(--aqua-glass);
-  box-shadow: var(--aqua-inset), 0 10px 36px rgb(19 45 83 / 0.16);
+  box-shadow: var(--aqua-inset);
   backdrop-filter: var(--aqua-filter);
+  pointer-events: none;
 }
 
 body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
-  box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
+  box-shadow: var(--aqua-shadow-dark);
 }
 
 /* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释） */
@@ -401,14 +435,15 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-slot='sidebar.settings'] {
   background: transparent;
 }
 
-/* 空白会话（英雄区）：发送栏悬在页面中部，投影放开一些，水色透得更足 */
+/* 空白会话（英雄区）：发送栏悬在页面中部，投影放开一些，水色透得更足。
+   （内高光在 `::before` 上，不随相位变，所以这里只留外阴影。） */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-phase='hero'] [data-composer-card] {
-  box-shadow: var(--aqua-inset), 0 18px 52px rgb(19 45 83 / 0.18);
+  box-shadow: 0 18px 52px rgb(19 45 83 / 0.18);
 }
 
 /* 会话进行中：发送栏贴底，投影收紧，避免和下方内容抢视觉 */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-phase='active'] [data-composer-card] {
-  box-shadow: var(--aqua-inset), 0 8px 28px rgb(19 45 83 / 0.14);
+  box-shadow: 0 8px 28px rgb(19 45 83 / 0.14);
 }
 
 /* ── 内容表面：代码块 / 行内代码 / 工具卡 / 侧栏按钮 ─────────────────────

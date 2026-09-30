@@ -234,6 +234,45 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(beforeRule).toContain('position: absolute')
   })
 
+  it('发送卡的玻璃也画在伪元素上（否则卡内浮层的模糊会被 backdrop root 吃掉）', () => {
+    // ⚠️ 与上面侧栏那条同源，但后果不同：侧栏踩的是「backdrop-filter 为 fixed
+    // 后代创建包含块」，这里踩的是「backdrop-filter 让元素成为 backdrop root」——
+    // 后代的 backdrop-filter 只能采样**它内部**已画好的东西。
+    //
+    // 宿主把 `conversation.input.overlay` 槽（InputBar 的 .overlayAnchor）放在
+    // 发送卡里，"/" 与 "@" 的候选菜单、popupSelect 面板都从这里长出来；而它们
+    // 定位在卡的上边缘**之外**（bottom: calc(100% + 4px)）。于是浮层那句
+    // `blur(40px)`（宿主 --dsw-menu-backdrop-filter）采样到的是"卡外面"的空，
+    // **静默失效** —— 只剩 58% 半透明白底，底下的对话文字原样透上来，读不清。
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const cardRule = clean.match(
+      /body\[data-dsh-aqua-glass\] \[data-composer-card\]\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(cardRule, '发送卡规则没解析出来').not.toBe('')
+    expect(cardRule, '发送卡上不能有 backdrop-filter').not.toContain('backdrop-filter')
+    // 伪元素敢用 z-index: -1 的前提是卡自己成层叠上下文；否则那层玻璃会掉到
+    // 转写区底下（卡上还有 z-index: 8 负责压住转写区）。
+    expect(cardRule, '发送卡必须自建层叠上下文，::before 的 -1 才安全').toMatch(/z-index:\s*\d/)
+
+    const beforeRule = clean.match(
+      /body\[data-dsh-aqua-glass\] \[data-composer-card\]::before\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(beforeRule, '发送卡 ::before 规则没解析出来').not.toBe('')
+    expect(beforeRule, '玻璃的模糊必须在伪元素上').toContain('backdrop-filter')
+    // 填充也必须跟着走：留在卡上，伪元素模糊到的就是卡自己那块纯色底。
+    expect(beforeRule).toContain('background: var(--aqua-glass)')
+    expect(beforeRule).toContain('z-index: -1')
+
+    // 兜底扫描：凡是**以发送卡结尾**（即瞄准卡本身，不是它的后代）的规则，
+    // 都不许再带回 backdrop-filter —— hero / active 那两条投影规则是最容易
+    // 被顺手加回去的地方，而发送键那条规则瞄的是后代，不在扫描范围内。
+    const offenders = [...clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(match => /\[data-composer-card\]$/.test((match[1] ?? '').trim()))
+      .filter(match => (match[2] ?? '').includes('backdrop-filter'))
+      .map(match => (match[1] ?? '').trim())
+    expect(offenders, `这些规则又把 backdrop-filter 加回发送卡了：\n${offenders.join('\n')}`).toEqual([])
+  })
+
   it('侧栏内容根的自带底色被置透明（否则盖住列的玻璃）', () => {
     const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
     expect(rule).toMatch(/\[data-aqua-sidebar-root\]\s*\{[^}]*background: transparent/)
