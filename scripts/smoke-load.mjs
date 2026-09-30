@@ -154,11 +154,12 @@ check(
   `环境层与壁纸层都在 body 最前面（实际前两个：${firstChildren.join(' / ')}）`,
 )
 
-// ── 诊断角标（临时）───────────────────────────────────────────────────────
+// ── 诊断角标（已下线）─────────────────────────────────────────────────────
+// 视觉定稿前把它从挂载路径上摘掉了：它会在页面上多挂一个节点。
+// 模块与 config.debug 按项目约定保留并标注 @deprecated，所以这里反过来断言**不存在** ——
+// 哪天有人顺手把挂载加回去，这条会拦住。
 const badge = app.document.getElementById('dsh-aqua-glass-diagnostic')
-check(badge !== null, '诊断角标已挂载（临时，定稿前删）')
-check(String(badge?.textContent).includes('Aqua'), '角标文案里带插件名')
-check(String(badge?.textContent).includes('框架层'), '角标列出了框架层探针')
+check(badge === null, '诊断角标已下线（apply 不再往页面挂节点）')
 
 check(disposers.length === 1, 'apply 通过 ctx.effect 注册了 1 个 disposer')
 
@@ -170,7 +171,7 @@ check(root.style.getPropertyValue('--aqua-blur') === '', '卸载后 documentElem
 check(app.document.body.hasAttribute('data-aqua-resizing') === false, '卸载后补丁标记已撤干净（不残留宿主属性）')
 check(app.document.querySelector('[data-dsh-aqua-ambient]') === null, '卸载后环境层 DOM 已移除')
 check(app.document.querySelector('[data-dsh-aqua-wallpaper-layer]') === null, '卸载后壁纸层 DOM 已移除')
-check(app.document.getElementById('dsh-aqua-glass-diagnostic') === null, '卸载后诊断角标已移除')
+check(app.document.getElementById('dsh-aqua-glass-diagnostic') === null, '卸载后页面无角标残留')
 check(app.document.querySelectorAll('style[data-plugin-css]').length === 2, '卸载不重复注入 <style>')
 
 // ── 总开关关闭：不产生任何副作用 ──────────────────────────────────────────
@@ -243,4 +244,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  ✗ ${failure}`)
   process.exit(1)
 }
-console.log('\n冒烟加载通过：产物可注册、零 require、apply 可挂载可回收、环境层与角标就位')
+console.log('\n冒烟加载通过：产物可注册、零 require、apply 可挂载可回收、环境层就位、页面无残留节点')

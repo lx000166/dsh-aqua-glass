@@ -38,8 +38,11 @@ export interface GlassConfig {
   /** 流体深浅（0–100：0 = 深而饱和，100 = 极淡）。 */
   depth: number
   /**
-   * 诊断角标（临时）。右下角实时显示各缝合点命中的元素数。
-   * 视觉定稿前删掉 diagnostic.ts 与本开关。
+   * 诊断角标开关。
+   *
+   * @deprecated 角标已下线（不再挂载，`diagnostic.ts` 保留并标注废弃）。
+   * 字段保留是为了兼容旧的 localStorage 配置，也方便需要时一行恢复；
+   * 当前**没有任何消费方**。
    */
   debug: boolean
 }

@@ -16,7 +16,6 @@ import { mountAmbient } from './ambient.ts'
 // ⚠️ 宿主 bug 的临时补丁，上游修好后连同样式表里那条规则一起删（见模块头注释）。
 import { startViewportGuard } from './animation-patch.ts'
 import { readConfig, type GlassConfig } from './config.ts'
-import { mountDiagnostic } from './diagnostic.ts'
 import { createAttributeLease } from './dom-lease.ts'
 import { BODY_ATTRIBUTE } from './seam.ts'
 import { startSeamStamper } from './seam-stamper.ts'
@@ -25,9 +24,17 @@ import { startSeamStamper } from './seam-stamper.ts'
 import './material.module.css'
 import './ambient.module.css'
 
-/** 包版本，由 tsdown 的 define 注入；诊断角标用它确认页面跑的是哪一版产物。 */
+/**
+ * 包版本，由 tsdown 的 define 注入。
+ *
+ * @deprecated 原先只给右下角的诊断角标用；角标已于视觉定稿前下线
+ * （`diagnostic.ts` 保留但不再挂载，见其模块头的 @deprecated 说明）。
+ * 常量保留是因为构建期的 define 仍在注入，且插件卡片/日志随时可能再用到；
+ * 用 `void` 显式消费一次，避免 `noUnusedLocals` 报错。
+ */
 declare const __AQUA_VERSION__: string
 const VERSION = typeof __AQUA_VERSION__ === 'string' ? __AQUA_VERSION__ : 'dev'
+void VERSION
 
 /** cordis 客户端上下文里本插件真正用到的那一小部分。 */
 export interface ClientContext {
@@ -89,7 +96,6 @@ export function apply(ctx: ClientContext): void {
     if (!config.enabled) return () => {}
 
     let lease: ReturnType<typeof createAttributeLease> | null = null
-    let unmountDiagnostic: (() => void) | null = null
     let unmountAmbient: (() => void) | null = null
     let stopStamper: (() => void) | null = null
     /** 宿主动画 bug 的临时补丁（缩放/启动期间抑制常驻过渡）。 */
@@ -112,15 +118,8 @@ export function apply(ctx: ClientContext): void {
       stopStamper = startSeamStamper()
       // 流体板随后挂上（WebGL 初始化是同步的）。
       unmountAmbient = mountAmbient({ hue: config.hue, depth: config.depth })
-      // 角标最后挂，所以「看到角标」等价于「apply 跑到底了」。
-      // 它是辅助工具，自身出错绝不能影响主题 —— 冒烟脚本曾在这里抓到过一次。
-      if (config.debug) {
-        try {
-          unmountDiagnostic = mountDiagnostic(VERSION)
-        } catch (error) {
-          console.warn('aqua: 诊断角标挂载失败，已跳过', error)
-        }
-      }
+      // 右下角的诊断角标已下线（视觉定稿前移除）：它会在页面上多挂一个节点。
+      // 模块与 `config.debug` 按项目约定保留并标注 @deprecated，需要时可一行恢复。
     }
 
     mount()
@@ -129,8 +128,6 @@ export function apply(ctx: ClientContext): void {
 
     return () => {
       document.removeEventListener('DOMContentLoaded', onReady)
-      unmountDiagnostic?.()
-      unmountDiagnostic = null
       // 环境层先撤：它的 dispose 会停掉渲染循环并移除自己 prepend 的 DOM。
       unmountAmbient?.()
       unmountAmbient = null
