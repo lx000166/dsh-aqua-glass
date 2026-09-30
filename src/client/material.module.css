@@ -349,49 +349,43 @@ body[data-dsh-aqua-glass] {
   --dsw-alias-button-tool-bar-fill: var(--aqua-well);
 }
 
-/* 工具卡（`.xxx_card` 用的是**全局基色** --dsw-alias-bg-base）。
-   ⚠️ 绝不能把 bg-base 整体改透明 —— body / 框架层都靠它。所以这条单独针对
-   工具卡覆盖，并补上 backdrop-filter 让它真的磨砂，而不只是变透明。 */
-body[data-dsh-aqua-glass] [data-tool] [class*='_card'],
+/* 工具卡与代码块标题栏：**它们用的都是全局基色 `--dsw-alias-bg-base`**，
+ * 不是我原先猜的那些 markdown token，所以按类名/属性选择器去追必然打偏
+ * （实测两轮都没打中）。
+ *
+ * 正解是把 bg-base 的覆盖**限定在转写滚动容器内部**：
+ * - 范围外（`body`、框架层）读到的仍是根值，一点不受影响 —— 这也是
+ *   「bg-base 不能全局改」那条约束的绕法。
+ * - 范围内一次全改，**不依赖任何类名**，宿主改名/换包也不受影响。
+ * - 自定义属性会继承，所以转写区里所有拿 bg-base 当底色的表面都会跟着变。 */
+body[data-dsh-aqua-glass] [data-conversation-scroll] {
+  --dsw-alias-bg-base: var(--aqua-well);
+}
+
+/* 粘性标题栏会盖在滚动内容上，光有半透明填充会透出下面的字 —— 补一道模糊。 */
 body[data-dsh-aqua-glass] [data-code-block-banner] {
-  background: var(--aqua-well);
   backdrop-filter: var(--aqua-filter);
 }
 
-/* ── 新建会话按钮：小尺寸玻璃珠（"透明珠"路线）──────────────────────────
+/* ── 新建会话按钮：简单玻璃底 + 半透明描边 ──────────────────────────────
  *
- * 原先它是「不透明底 + 一圈深色硬边」，压在侧栏玻璃上就是一块白牌子。
- * 现在去掉硬边框，只用与三块卡片**同款**的 mask 渐变描边，填充降到
- * --aqua-well 档 —— 变成玻璃上略亮的一颗珠，而不是贴上去的牌。 */
+ * 试过「透明珠」（mask 渐变描边）但观感偏花 —— 这颗按钮尺寸小、又是重复出现
+ * 的控件，渐变描边在上面读起来像装饰而不是材质。改回**简单背景 + 一道
+ * 低透明度描边**，与侧栏玻璃同档。 */
 body[data-dsh-aqua-glass] button[class*='newSession'] {
-  position: relative;
   background: var(--aqua-well);
-  border: none;
+  border: 1px solid var(--aqua-line);
   border-radius: var(--aqua-radius);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+  box-shadow: none;
   backdrop-filter: blur(var(--aqua-blur));
 }
 
-body[data-dsh-aqua-glass] button[class*='newSession']::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: var(--aqua-edge);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
 body[data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
-  background: var(--aqua-surface-hover);
+  background: var(--aqua-surface);
 }
 
 body[data-dsh-aqua-glass][data-ds-dark-theme] button[class*='newSession'] {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  border-color: var(--aqua-line-dark);
 }
 
 /* ── 铭牌与设置入口 ───────────────────────────────────────────────────── */
