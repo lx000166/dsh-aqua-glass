@@ -274,13 +274,58 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     }
   })
 
-  it('新建会话按钮是简单玻璃底 + 半透明描边', () => {    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+  it('侧栏按钮走按钮专用的一档（比卡片更淡），不是卡片玻璃', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const buttonRule = clean.match(/body\[data-dsh-aqua-glass\] button\[class\*='newSession'\]\s*\{([^}]*)\}/)?.[1] ?? ''
     expect(buttonRule, '新建按钮规则没解析出来').not.toBe('')
-    expect(buttonRule).toContain('border: 1px solid var(--aqua-line)')
+    // ⚠️ 「新会话」与「记忆」**共用这一条规则** —— 后者是第三方插件
+    // @modusensus/dsh-mneme 按生态惯例（sidebar-entry-core）复用 newSession
+    // 行样式注入的入口。所以这里是两颗按钮的观感旋钮。
+    expect(buttonRule).toContain('background: var(--aqua-pill)')
+    expect(buttonRule).toContain('border: 1px solid var(--aqua-pill-line)')
     expect(buttonRule).toContain('backdrop-filter')
     // 渐变描边在这颗小按钮上读起来像装饰，已撤掉。
     expect(squash(clean)).not.toMatch(/button\[class\*='newSession'\]::after/)
+    // 按钮档必须明显淡于内容凹槽，否则"白牌子"感会回来。
+    const pill = MATERIAL_CSS.match(/--aqua-pill:\s*color-mix\([^;]*?calc\((\d+)%/)
+    const well = MATERIAL_CSS.match(/--aqua-well:\s*color-mix\([^;]*?calc\((\d+)%/)
+    expect(Number(pill?.[1]), '按钮档应明显淡于 --aqua-well').toBeLessThan(Number(well?.[1]))
+  })
+
+  /**
+   * 代码块 header 的真凶是 `.bannerWrap`，**不是** `--dsw-alias-markdown-code-block-banner`
+   * 那条 token —— 后者只有 CodeCard 组件消费，markdown 代码块根本不用它。
+   * 这条断言防止再"顺着 token 名去改一个没人消费的变量"。
+   */
+  it('代码块 header 直接瞄 banner 元素，并补模糊（它是 sticky）', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(clean).toMatch(/\[class\*='bannerWrap'\]\s*\{[^}]*background-color:\s*var\(--aqua-well\)/)
+    // sticky 元素会盖在滚动中的代码上，只给半透明会透出底下的字。
+    expect(clean).toMatch(/\[class\*='bannerWrap'\]\s*\{[^}]*backdrop-filter/)
+  })
+
+  /**
+   * 「已编辑 N 个文件」卡用的是 `--dsw-alias-bg-layer-1`（不是 bg-base），
+   * 而 bg-layer-* 全局禁止覆盖（35+ 消费点里大量是输入框与徽章）。
+   * 好在卡片自带宿主发出的 `data-changed-files` 语义属性 —— 直接瞄元素、绕开 token。
+   */
+  it('已编辑文件卡走 data-changed-files 锚点，且不动 bg-layer-*', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(clean).toContain('[data-changed-files]')
+    // `--changes-fill` 是卡片**在自己身上**声明的局部变量，只有写在同一个元素上
+    // 才生效（写祖先会被它自己的声明压掉 —— 与 blur 那次同一个坑）。
+    expect(clean).toMatch(/\[data-changed-files\]\s*\{[^}]*--changes-fill:\s*transparent/)
+    expect(clean).toMatch(/\[data-changed-files\]\s*\{[^}]*background:\s*var\(--aqua-well\)/)
+    // 依旧一个字都不许碰 bg-layer-*。
+    expect(clean).not.toContain('--dsw-alias-bg-layer-1:')
+  })
+
+  it('我发出的对话气泡改走半透明（宿主默认不透明）', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(clean).toMatch(/--dsw-specific-bubble:\s*var\(--aqua-bubble\)/)
+    expect(clean).toContain('--aqua-bubble:')
+    // 强调态气泡不动。
+    expect(clean).not.toContain('--dsw-specific-bubble-highlight:')
   })
 })
 

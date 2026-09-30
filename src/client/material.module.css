@@ -47,6 +47,15 @@ body[data-dsh-aqua-glass] {
      比卡片实一点（40% vs 30%），因为文字要压在上面，可读性优先。
      用户拍板的透明度就是 40%。 */
   --aqua-well: color-mix(in srgb, rgb(255 255 255) calc(40% * var(--aqua-frost)), transparent);
+  /* 侧栏两颗按钮（新会话 / 记忆）专用的一档：比卡片还淡。
+     它们原来吃的是 `--aqua-well`（40%），压在这块饱和流体上像一块白牌子。
+     ⚠️ 两颗按钮共用同一条规则 —— 见下面 `button[class*='newSession']` 的说明。 */
+  --aqua-pill: color-mix(in srgb, rgb(255 255 255) calc(16% * var(--aqua-frost)), transparent);
+  --aqua-pill-hover: color-mix(in srgb, rgb(255 255 255) calc(26% * var(--aqua-frost)), transparent);
+  --aqua-pill-line: rgb(19 45 83 / 0.1);
+  /* 用户消息气泡。宿主给的是**不透明**的 deepseek-50；气泡在流内、背后就是流体，
+     纯半透明即可（不需要模糊 —— 没有别的内容会从它后面滚过）。 */
+  --aqua-bubble: color-mix(in srgb, rgb(255 255 255) calc(34% * var(--aqua-frost)), transparent);
   --aqua-line: rgb(19 45 83 / 0.26);
   --aqua-line-dark: rgb(148 180 220 / 0.32);
   --aqua-shadow: 0 10px 34px rgb(19 45 83 / 0.16);
@@ -76,6 +85,11 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] {
   --aqua-surface-hover: color-mix(in srgb, rgb(54 58 70) calc(58% * var(--aqua-frost)), transparent);
   /* 深色态的内容凹槽：比底色**亮**一档（不是更暗），文字压在上面才读得清 */
   --aqua-well: color-mix(in srgb, rgb(58 66 82) calc(40% * var(--aqua-frost)), transparent);
+  /* 按钮档（深色）：同样是"比底色亮一档"，但只有 16%，避免那块灰蓝牌子感。 */
+  --aqua-pill: color-mix(in srgb, rgb(58 66 82) calc(16% * var(--aqua-frost)), transparent);
+  --aqua-pill-hover: color-mix(in srgb, rgb(58 66 82) calc(26% * var(--aqua-frost)), transparent);
+  --aqua-pill-line: rgb(148 180 220 / 0.12);
+  --aqua-bubble: color-mix(in srgb, rgb(58 66 82) calc(34% * var(--aqua-frost)), transparent);
   --aqua-line: var(--aqua-line-dark);
   --aqua-shadow: var(--aqua-shadow-dark);
   --aqua-inset: var(--aqua-inset-dark);
@@ -345,9 +359,16 @@ body[data-dsh-aqua-glass] {
   --dsw-alias-markdown-inline-code: var(--aqua-well);
   /* 聊天里的文件卡 */
   --dsw-specific-input-major: var(--aqua-well);
+  /* 我发出的对话气泡（ui-chat 的 `.bubble`）。宿主默认是**不透明**的
+     `deepseek-50` / `neutral-bluish-850`，所以在流体上是两块实心色块。
+     同族另有 `--dsw-specific-bubble-highlight`（引用态的强调气泡），不动它。 */
+  --dsw-specific-bubble: var(--aqua-bubble);
 
-  /* 侧栏「新会话 / 记忆」那两颗小白牌：它们的底色来自 button-floating-fill，
-     不是组件自己的类。改成与卡片同档的玻璃，白牌感立刻消失。 */
+  /* 侧栏「新会话 / 记忆」那两颗按钮的底色**不是**来自这个 token。
+     ⚠️ 早期结论是错的：`--dsw-alias-button-floating-fill` 在宿主侧栏包里
+     **零引用**（全 asar 扫描只有 chat 的「回到底部」/ plan / tool 三处），
+     那两颗按钮实际由下面 `button[class*='newSession']` 那条规则画。
+     这几个 token 保留给它们真正的消费方（浮动按钮 / 工具条）。 */
   --dsw-alias-button-floating-fill: var(--aqua-well);
   --dsw-alias-button-floating-hover: var(--aqua-surface-hover);
   --dsw-alias-button-elevated-fill: var(--aqua-well);
@@ -396,30 +417,81 @@ body[data-dsh-aqua-glass] [data-conversation-scroll] {
   --dsw-alias-bg-base: var(--aqua-well);
 }
 
-/* 粘性标题栏会盖在滚动内容上，光有半透明填充会透出下面的字 —— 补一道模糊。 */
+/* ── 代码块 header：上一轮改错了元素，这里是更正 ─────────────────────────
+ *
+ * 宿主 markdown 代码块的真实结构（ui-primitives 的 markdown/CodeBlock）：
+ *
+ *   .block        → --dsl-code-block-background: var(--dsw-alias-markdown-code-block)
+ *                   background: var(--dsl-code-block-background)   ← body，已经是半透 ✓
+ *     .bannerWrap → position: sticky; background-color: var(--dsw-alias-bg-base)  ← header 真凶
+ *       .header / .banner → 带 `data-code-block-banner`，是**内层工具栏**
+ *
+ * 关键：`--dsw-alias-markdown-code-block-banner` 那条 token（上一轮我改的）
+ * 在 markdown 代码块这个组件上**根本没有被消费** —— 只有 CodeCard 那个组件的
+ * header 才用它。所以上一轮"改了 token 却没变"是必然的。
+ *
+ * 这里直接瞄元素本身。片段选择器在两种构建里都命中（预构建产物是
+ * `_bannerWrap_7gxqk_24`，插件构建是 `xz4KEq_bannerWrap`）。
+ *
+ * ⚠️ 它 `position: sticky`，会盖在**滚动中的代码**上 —— 只给半透明会透出底下
+ * 滚过的文字，必须补模糊。（这里安全：sticky 元素没有 fixed 后代，
+ * 不会重演侧栏开关那次「backdrop-filter 创建包含块」的问题。） */
+body[data-dsh-aqua-glass] [class*='bannerWrap'] {
+  background-color: var(--aqua-well);
+  backdrop-filter: var(--aqua-filter);
+}
+
+/* 内层工具栏（`data-code-block-banner`）本身在 CodeCard 里用的是代码块 token，
+   已是半透明；这条只负责给它补一道模糊。 */
 body[data-dsh-aqua-glass] [data-code-block-banner] {
   backdrop-filter: var(--aqua-filter);
 }
 
-/* ── 新建会话按钮：简单玻璃底 + 半透明描边 ──────────────────────────────
+/* ── 「已编辑 N 个文件」卡（ui-deliverables / ChangedFiles）───────────────
  *
- * 试过「透明珠」（mask 渐变描边）但观感偏花 —— 这颗按钮尺寸小、又是重复出现
- * 的控件，渐变描边在上面读起来像装饰而不是材质。改回**简单背景 + 一道
- * 低透明度描边**，与侧栏玻璃同档。 */
-body[data-dsh-aqua-glass] button[class*='newSession'] {
+ * ⚠️ 它**不用** bg-base，用的是 `--dsw-alias-bg-layer-1`：
+ *     .card { --changes-fill: …; background: var(--dsw-alias-bg-layer-1) }
+ * 所以上一轮那条「转写区限定的 bg-base 覆盖」接不住它 —— 这才是它一直实心的原因。
+ *
+ * 而 bg-layer-* 是**全局禁止改**的（35+ 消费点里大量是输入框与徽章）。
+ * 好在卡片自带宿主发出的语义属性 `data-changed-files`（同 `data-composer-card`
+ * 那类稳定锚点），于是直接瞄准元素本身，连 token 都不用动。
+ *
+ * `--changes-fill` 是卡片**在自己身上**声明的局部变量（只有它自己的 header 消费）
+ * —— 这正是 blur 那个坑的同型问题：在祖先上覆盖会被它自己的声明压掉。
+ * 直接写在同一个元素上（且特指度更高）才生效，否则 header 仍是一块不透明色。 */
+body[data-dsh-aqua-glass] [data-changed-files] {
   background: var(--aqua-well);
-  border: 1px solid var(--aqua-line);
+  backdrop-filter: var(--aqua-filter);
+  --changes-fill: transparent;
+  --changes-hover: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* ── 侧栏按钮：新会话 / 记忆 ─────────────────────────────────────────────
+ *
+ * ⚠️ 这两颗按钮**都由这一条规则画**，不是两颗独立的控件。
+ * 第三方插件 `@modusensus/dsh-mneme` 的侧栏入口按生态惯例**复用宿主
+ * newSession 行的样式**来融入侧栏 —— 它自己的源码注释写着靠
+ * `[class*="newSession"]` 锚点定位，生态约定名叫 sidebar-entry-core。
+ * （早期结论"两颗白牌来自 --dsw-alias-button-floating-fill"是错的：
+ *  那个 token 在宿主侧栏包里零引用。）
+ *
+ * 观感调整：原来吃 40% 的 `--aqua-well` + 0.26/0.32 的描边，压在饱和流体上
+ * 像一块白牌子；改用按钮专用的一档（16%）+ 更淡的描边（0.10/0.12）。
+ *
+ * 试过「透明珠」（mask 渐变描边）但观感偏花 —— 小尺寸重复控件上，渐变描边
+ * 读起来像装饰而不是材质，已撤掉。 */
+body[data-dsh-aqua-glass] button[class*='newSession'] {
+  background: var(--aqua-pill);
+  border: 1px solid var(--aqua-pill-line);
   border-radius: var(--aqua-radius);
   box-shadow: none;
   backdrop-filter: blur(var(--aqua-blur));
 }
 
 body[data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
-  background: var(--aqua-surface);
-}
-
-body[data-dsh-aqua-glass][data-ds-dark-theme] button[class*='newSession'] {
-  border-color: var(--aqua-line-dark);
+  /* 悬停基准也跟着降档，否则从 16% 跳到 48% 会闪一下。 */
+  background: var(--aqua-pill-hover);
 }
 
 /* ── 铭牌与设置入口 ───────────────────────────────────────────────────── */
