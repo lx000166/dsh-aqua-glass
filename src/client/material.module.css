@@ -106,19 +106,49 @@ body[data-dsh-aqua-glass] [data-phase] [class*='composerSeat'][class*='composerS
   background: none;
 }
 
-/* ── 侧栏：只换材质，**不动几何** ────────────────────────────────────────
+/* ── 侧栏：悬浮玻璃卡 ────────────────────────────────────────────────────
  *
- * 上游 mica 模式的悬浮侧栏卡（margin 12px、padding 10px 12px 14px、圆角 20px、
- * overflow hidden、z-index 9）在这里**不能直接照搬**：宿主的侧栏盒模型与
- * 顶栏里的展开/收起开关、品牌标、`--dsh-windows-menu-start` 定位是耦合的，
- * 改盒模型会把开关挤进侧栏卡片、甚至挤出可视区（实测两次）。
+ * ## 玻璃必须画在 `::before` 上，不能画在列本身
  *
- * 上游能这么做，是因为它整套有约二十条配套规则 + `data-dsh-float` 门控。
- * 在补齐那套之前，这里只做**零几何改动**的玻璃化：原位置、原尺寸、原层级。 */
+ * 宿主把侧栏开关写成**相对视口**的 fixed：
+ * ```css
+ * [data-windows-titlebar] .root .toggle {
+ *   position: fixed; left: 12px;
+ *   top: calc((var(--dsh-windows-titlebar-height) - 28px) / 2);
+ * }
+ * ```
+ * 而 `backdrop-filter` 会为 `position: fixed` 后代**创建包含块**。玻璃糊在列上，
+ * 开关就变成"相对侧栏列定位" —— 于是「偏到 logo 的位置」。
+ *
+ * 把玻璃挪到伪元素上，列本身只留几何，包含块效应消失，开关回到视口定位，
+ * 悬浮卡几何也就能安全恢复。`position: relative` 只影响 absolute 后代、
+ * 不影响 fixed，安全。 */
 body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) {
+  position: relative;
+  /* 高于顶栏卡（8）：设置面板是困在这个层叠上下文里的 fixed 浮层，
+     侧栏必须压过顶栏，否则面板顶边会被顶栏盖住。 */
+  z-index: 9;
+  margin: 12px;
+  padding: 10px 12px 14px;
+  border-radius: 20px;
+  /* ⚠️ 这里绝不能出现 backdrop-filter —— 见上面的说明。 */
+  background: transparent;
+  box-shadow: var(--aqua-inset), var(--aqua-shadow);
+  overflow: hidden;
+}
+
+body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* 落在列内容之下。 */
+  z-index: -1;
+  border: 1px solid var(--aqua-line);
+  border-right: 1px solid rgb(150 190 245 / 0.65);
+  border-radius: inherit;
   background: var(--aqua-glass);
   backdrop-filter: var(--aqua-filter);
-  border-right: 1px solid var(--aqua-line);
+  pointer-events: none;
 }
 
 /* ⚠️ 关键的一层：侧栏内容根自带 `background: var(--dsw-specific-sidebar-fill)`
@@ -136,13 +166,24 @@ body[data-dsh-aqua-glass] [data-aqua-frame]:not([data-sidebar-collapsed]) [data-
   width: 100% !important;
 }
 
-/* 收起态：轨道交回宿主原样。窄条上的玻璃没有意义，而宿主的轨道几何与
-   顶栏菜单定位（`--dsh-windows-menu-start`）耦合很紧 —— 动它会把
-   展开/收起开关挤出可视区（实测过一次，用户因此无法再点开侧栏）。 */
+/* 收起态：轨道也悬浮。宿主自己的几何要保留 —— 框架的网格轨道从 256 滑到
+   56（300ms），同时把冻住的宽内容淡出（150ms）；在这里钉死宽度会立刻裁掉
+   正在淡出的内容。悬浮缝靠「左 12px + 负的右 12px」实现，外侧尺寸不变，
+   主列因此不动。内边距必须显式归零：展开态的横向内边距会把轨道按钮挤出
+   这条窄列。 */
 body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='sidebar'], [class*='sidebarCol']) {
-  background: transparent;
-  backdrop-filter: none;
-  border-right: none;
+  margin: 12px -12px 12px 12px;
+  padding: 0;
+  border-radius: 16px;
+  transition:
+    margin 150ms ease-in-out,
+    border-radius 150ms ease-in-out;
+}
+
+/* 收起后悬浮轨道向聊天区探进 12px，顶栏卡跟着右移让位
+   （28px 内缩 = 离轨道边缘还有 16px 空隙）。 */
+body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+  margin-left: 28px;
 }
 
 /* ── 会话顶栏：悬浮玻璃卡，配方与发送栏同款 ───────────────────────────── */

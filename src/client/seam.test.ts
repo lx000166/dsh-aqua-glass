@@ -136,17 +136,27 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule).toMatch(/composerSeat'\]\[class\*='composerSeat'\]\s*\{[^}]*background: none/)
   })
 
-  it('侧栏只换材质不动几何，并把内容根的自带底色置透明', () => {
-    const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
-    // 侧栏列只允许出现材质声明 —— 几何声明（margin/padding/border-radius/
-    // overflow/z-index）会把顶栏里的展开开关挤进卡片甚至挤出可视区。
-    const columnRule = rule.match(/body\[data-dsh-aqua-glass\] :is\(\[data-pane='sidebar'\][^{]*\{([^}]*)\}/)?.[1] ?? ''
+  it('侧栏玻璃画在伪元素上，列本身绝不带 backdrop-filter', () => {
+    // 这是踩过坑的不变量：backdrop-filter 会为 position:fixed 后代创建包含块，
+    // 而宿主的侧栏开关正是 `position:fixed; left:12px; top:6px`（相对视口）。
+    // 玻璃糊在列上，开关就会"偏到 logo 的位置"。
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const columnRule = clean.match(
+      /body\[data-dsh-aqua-glass\] :is\(\[data-pane='sidebar'\], \[class\*='sidebarCol'\]\)\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
     expect(columnRule, '侧栏列规则没解析出来').not.toBe('')
-    expect(columnRule).toContain('backdrop-filter')
-    for (const forbidden of ['margin:', 'padding:', 'border-radius:', 'overflow:', 'z-index:']) {
-      expect(columnRule, `侧栏列规则里不该有 ${forbidden}`).not.toContain(forbidden)
-    }
-    // 内容根自带 background: var(--dsw-specific-sidebar-fill)，不置透明会盖住玻璃。
+    expect(columnRule, '侧栏列上不能有 backdrop-filter').not.toContain('backdrop-filter')
+
+    const beforeRule = clean.match(
+      /body\[data-dsh-aqua-glass\] :is\(\[data-pane='sidebar'\], \[class\*='sidebarCol'\]\)::before\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(beforeRule, '侧栏 ::before 规则没解析出来').not.toBe('')
+    expect(beforeRule).toContain('backdrop-filter')
+    expect(beforeRule).toContain('position: absolute')
+  })
+
+  it('侧栏内容根的自带底色被置透明（否则盖住列的玻璃）', () => {
+    const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
     expect(rule).toMatch(/\[data-aqua-sidebar-root\]\s*\{[^}]*background: transparent/)
   })
 

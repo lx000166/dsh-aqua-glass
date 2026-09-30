@@ -128,12 +128,28 @@ export function mountDiagnostic(version: string): () => void {
     return lines
   }
 
+  /**
+   * 只在**出问题时**展开明细。
+   *
+   * 一切正常时角标只占一行（`Aqua 0.1.0 ✓`），不挡视线；一旦某个缝合点归零、
+   * 或者流体 canvas 没被定尺寸 / 拿不到 WebGL，才把完整清单铺开。
+   * 要彻底关掉就把配置里的 `debug` 设成 false。
+   */
   const render = (): void => {
-    const lines = PROBES.map(([label, selector]) => {
+    const probes = PROBES.map(([label, selector]) => {
       const count = document.querySelectorAll(selector).length
-      return `${count > 0 ? '✓' : '✗'} ${label} ${count}`
+      return { label, count, ok: count > 0 }
     })
-    badge.textContent = `Aqua ${version}\n${lines.join('\n')}\n${runtimeLines().join('\n')}`
+    const runtime = runtimeLines()
+    const healthy = probes.every((probe) => probe.ok)
+      && !runtime.some((line) => line.includes('no-gl') || line.includes('gl-throw') || /buf 0x/.test(line))
+
+    if (healthy) {
+      badge.textContent = `Aqua ${version} ✓`
+      return
+    }
+    const lines = probes.map((probe) => `${probe.ok ? '✓' : '✗'} ${probe.label} ${probe.count}`)
+    badge.textContent = `Aqua ${version} — 有异常\n${lines.join('\n')}\n${runtime.join('\n')}`
   }
 
   render()
