@@ -395,6 +395,32 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(tooltipRule).toContain('backdrop-filter')
   })
 
+  it('发送按钮只降品牌蓝的不透明度，不换色，且悬停态同步降档', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(clean).toMatch(
+      /\[data-composer-card\] button\[class\*='primary'\]\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--dsw-alias-button-info-fill\)/,
+    )
+    // 悬停必须也降档，否则 70% → 不透明会闪一下。
+    expect(clean).toMatch(
+      /\[data-composer-card\] button\[class\*='primary'\]:hover:not\(:disabled\)\s*\{[^}]*--dsw-alias-button-info-hover/,
+    )
+  })
+
+  /**
+   * ⚠️ 宿主的收起是「内容保持**冻结的展开宽度**原地淡出（.fading）→ 轨道滑完 →
+   * 才套用轨道布局（.railIn/.wide）」。我们那条放开宽度的 `!important` 是行内
+   * 样式的覆盖，若不排除运动中的两个类，就会在滑动中把宽度改成"当前动画中的
+   * 轨道宽度"，内容逐帧重排 —— 等于顶掉宿主的冻结宽度设计、毁掉那段动画。
+   */
+  it('侧栏宽度释放让位给宿主的收起动画（排除 .fading / .railIn）', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    const rule = clean.match(/\[data-aqua-frame\]:not\(\[data-sidebar-collapsed\]\)\s*\[data-aqua-sidebar-root\][^{]*\{([^}]*)\}/)?.[0] ?? ''
+    expect(rule, '侧栏宽度释放规则没解析出来').not.toBe('')
+    expect(rule).toContain(":not([class*='fading'])")
+    expect(rule).toContain(":not([class*='railIn'])")
+    expect(rule).toContain('width: 100% !important')
+  })
+
   it('侧栏只保留圆角避让的水平内边距（宿主 root 自带 12px）', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const columnRule = clean.match(

@@ -256,8 +256,13 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-sidebar-root] {
 /* 侧栏内容根在展开宽度上被行内样式冻住（收起交叉淡出需要它），放开宽度，
    内容才会跟着玻璃面板走，而不是溢出右边缘被裁掉。
    ⚠️ 必须用盖章属性定位 —— 宽泛的 `[class*='root']` 会连设置面板内部的
-   那个 `root` 一起选中，把面板的行挤成竖排文字。 */
-body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-frame]:not([data-sidebar-collapsed]) [data-aqua-sidebar-root] {
+   那个 `root` 一起选中，把面板的行挤成竖排文字。
+   ⚠️ 且**运动过程中必须让位**：宿主的收起是「内容保持冻结的展开宽度原地淡出
+   （.fading）→ 轨道滑完 → 再套用轨道布局（.railIn / .wide）」。我们这条
+   `width: 100% !important` 是**行内样式的覆盖**，若不排除运动中的两个类，
+   它会在滑动过程中把宽度改成"当前动画中的轨道宽度"，内容跟着逐帧重排 ——
+   等于把宿主的冻结宽度设计顶掉。只在静止态放开。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-frame]:not([data-sidebar-collapsed]) [data-aqua-sidebar-root]:not([class*='fading']):not([class*='railIn']) {
   width: 100% !important;
 }
 
@@ -622,6 +627,27 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-add] {
 
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-add]:hover:not(:disabled) {
   background: var(--aqua-pill-hover);
+}
+
+/* ── 发送按钮（输入栏右下那颗蓝色圆钮）──────────────────────────────────
+ *
+ * 宿主 `.primary { background: var(--dsw-alias-button-info-fill) }` —— 品牌蓝
+ * （浅色 `deepseek-500` / 深色 `deepseek-400`），箭头是**硬编码白字**
+ * （设计稿要求白箭头压蓝底）。同一条规则同时管「发送」与「停止」两颗。
+ *
+ * 这里**不换色**，只用 `color-mix` 把品牌蓝本身调到 70% 不透明 —— 色相识别度
+ * 保留，同时让底下的流体透上来。悬停态也跟着降一档（宿主那句是
+ * `--dsw-alias-button-info-hover`，深浅两态的蓝会对调）。
+ *
+ * 锚点：`[data-composer-card]`（宿主语义属性）+ `button[class*='primary']`
+ * —— 输入栏内只有这一对按钮用 primary 类名。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card] button[class*='primary'] {
+  background: color-mix(in srgb, var(--dsw-alias-button-info-fill) 70%, transparent);
+  backdrop-filter: blur(var(--aqua-blur));
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card] button[class*='primary']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-button-info-hover) 84%, transparent);
 }
 
 /* ── 悬浮提示气泡（Tooltip）────────────────────────────────────────────────
