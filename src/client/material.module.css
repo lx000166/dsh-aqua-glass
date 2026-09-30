@@ -111,6 +111,33 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
      ⚠️ `corner-shape` **不继承**（初始值 round），所以用它的卡片必须给
      ::before / ::after 显式写 `corner-shape: inherit`，否则玻璃与描边的圆角形状对不上。 */
   --aqua-corner: squircle;
+
+  /* ── 滚动条 ────────────────────────────────────────────────────────────
+   *
+   * 宿主 `ui-theme/src/styles/scrollbar.css` 是这四个 token 的**唯一消费者**
+   * （该文件注释原话：「the sole consumer of the four --dsw-alias-scrollbar-* tokens」），
+   * 所以在这里改是外科手术式的，不会波及别处 —— 这正是它比 `--dsw-alias-bg-layer-*`
+   * 适合下手的原因。
+   *
+   * 宿主默认给的是**不透明**的中性灰（浅色 `neutral-200`、深色 `neutral-700`/
+   * `neutral-600`），压在流体与玻璃上就是一根实心灰棒
+   * （用户报障：「现在的实心滚动条不好看，和主题不搭」）。
+   * 改成与描边/按钮同族的**半透明冷色**：浅色态用深蓝、深色态用浅蓝，
+   * 靠 alpha 让底下的水色透上来。
+   *
+   * l1 = 基础表面（会话、侧栏）；l2 = 抬升表面（菜单、卡片、代码块）那一档，
+   * 宿主在各自的容器上重绑到 l2。两档给接近的权重即可，差太多会显得跳。
+   * 悬停档比静息档重一档（宿主原本也是这个关系：300 压 200）。 */
+  --dsw-alias-scrollbar-bg-l1: rgb(19 45 83 / 0.24);
+  --dsw-alias-scrollbar-bg-l2: rgb(19 45 83 / 0.3);
+  --dsw-alias-scrollbar-hover-l1: rgb(19 45 83 / 0.4);
+  --dsw-alias-scrollbar-hover-l2: rgb(19 45 83 / 0.48);
+  /* 几何：基础档给杆身留 1px 内缩 —— 读起来是"轨道里悬着的一根细胶囊"（macOS 观感），
+     而不是贴着边的一根实心块。宿主 `::-webkit-scrollbar-thumb` 用
+     `border: <n> solid transparent` + `background-clip: content-box` 实现内缩，
+     所以这里只给厚度、颜色照旧来自上面四个 token。
+     菜单（6px/2px）与日程页（9px/2px）各自重绑了几何，不受这一条影响。 */
+  --dsh-scrollbar-thumb-border: 1px;
 }
 
 /* 深色态：中性冷灰而非蓝 —— 否则磨砂度拉满会露出蓝底，像一块蓝板 */
@@ -138,6 +165,11 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] {
     rgb(14 22 34 / 0.62) 84%,
     rgb(120 160 215 / 0.26) 100%
   );
+  /* 滚动条（深色态）：浅蓝半透明 —— 深色玻璃上"亮一档"才读得出来（理由见浅色块那段）。 */
+  --dsw-alias-scrollbar-bg-l1: rgb(148 180 220 / 0.26);
+  --dsw-alias-scrollbar-bg-l2: rgb(148 180 220 / 0.32);
+  --dsw-alias-scrollbar-hover-l1: rgb(148 180 220 / 0.44);
+  --dsw-alias-scrollbar-hover-l2: rgb(148 180 220 / 0.52);
 }
 
 /* ── 原生标题栏（Windows 顶部那条带子）─────────────────────────────────

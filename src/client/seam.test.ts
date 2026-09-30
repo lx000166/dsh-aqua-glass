@@ -434,6 +434,37 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(maskRule, '改用遮罩让内容自己淡出').toContain('mask-image')
   })
 
+  /**
+   * 滚动条：宿主 `ui-theme/src/styles/scrollbar.css` 是那四个
+   * `--dsw-alias-scrollbar-*` 的**唯一消费者**（该文件注释原话），
+   * 默认却是**不透明**的中性灰（浅 `neutral-200` / 深 `neutral-700`、`neutral-600`），
+   * 压在流体与玻璃上就是一根实心灰棒 —— 用户报障「实心滚动条不好看，和主题不搭」。
+   *
+   * 这条断言守三件事：四个 token 两态齐备、每个值都**带 alpha**（否则又变实心）、
+   * 以及基础档的杆身内缩（macOS 那种"轨道里悬一根细胶囊"的观感）。
+   */
+  it('滚动条改成半透明冷色（四 token × 两态 × 带 alpha）', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const tokens = [
+      '--dsw-alias-scrollbar-bg-l1',
+      '--dsw-alias-scrollbar-bg-l2',
+      '--dsw-alias-scrollbar-hover-l1',
+      '--dsw-alias-scrollbar-hover-l2',
+    ]
+    for (const token of tokens) {
+      const values = [...clean.matchAll(new RegExp(`${token}:\\s*([^;]+);`, 'g'))]
+        .map(match => match[1] ?? '')
+      expect(values.length, `${token} 浅深两态都要覆盖`).toBeGreaterThanOrEqual(2)
+      for (const value of values) {
+        expect(value, `${token} 必须是**带 alpha** 的颜色（实心就是没改）`)
+          .toMatch(/rgb\([^)]*\/\s*0?\.\d+\s*\)/)
+      }
+    }
+    expect(clean, '基础档滚动条缺少杆身内缩').toContain('--dsh-scrollbar-thumb-border: 1px')
+    // 这两条与滚动条无关，是同一批 token 旁边的禁区，顺手再钉一次。
+    expect(clean, '不要碰 bg-layer-*').not.toContain('--dsw-alias-bg-layer-1:')
+  })
+
   it('侧栏按钮走按钮专用的一档（比卡片更淡），不是卡片玻璃', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const buttonRule = clean.match(/body\[data-dsh-aqua-glass\] button\[class\*='newSession'\]\s*\{([^}]*)\}/)?.[1] ?? ''
