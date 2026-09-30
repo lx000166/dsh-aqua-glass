@@ -37,6 +37,35 @@ export function isDark(): boolean {
   return document.body.hasAttribute('data-ds-dark-theme')
 }
 
+/** 可变配色（`AmbientOptions` 的字段是只读的，实时调色需要能写）。 */
+interface MutableTone {
+  hue: number
+  depth: number
+}
+
+/**
+ * 当前挂载中的流体配色句柄（卸载时自动清空）。
+ *
+ * 只给实时调色用 —— 改它不会重建 WebGL 上下文，只更新着色器的 uniform。
+ */
+let liveTone: { tone: MutableTone; refresh: () => void } | null = null
+
+/**
+ * 实时改流体配色（色调 0–360 / 深浅 0–100），**不重建 WebGL**。
+ *
+ * 用途：将来「设置面板里的色调/深浅滑条」的现成钩子 —— 参数语义与 `config.ts`
+ * 的 `hue`/`depth` 完全一致，写进 localStorage 后下次启动会走同一条路径。
+ *
+ * （写它的时候配了一个临时调色面板 `tune-tmp.ts` 用来定默认值，面板已按约定删除；
+ *   这个接口保留：没挂载环境层时它是空操作，零副作用。）
+ */
+export function setAmbientTone(tone: AmbientOptions): void {
+  if (liveTone === null) return
+  liveTone.tone.hue = tone.hue
+  liveTone.tone.depth = tone.depth
+  liveTone.refresh()
+}
+
 /**
  * 挂载流体背景板。
  *
@@ -48,13 +77,15 @@ export function isDark(): boolean {
  */
 export function mountAmbient(options: AmbientOptions): () => void {
   const disposers: Array<() => void> = []
+  // 可变配色对象：实时调色（见 setAmbientTone）直接改它，params() 每次重算都读到最新值。
+  const tone: MutableTone = { hue: options.hue, depth: options.depth }
   try {
     ensureAmbientScene()
     const canvas = document.querySelector<HTMLCanvasElement>('[data-dsh-aqua-fluid-canvas]')
 
     const params = (): FluidParams => ({
       ...SITE_FLUID_PARAMS,
-      ...fluidToneColors(isDark(), options.hue, options.depth),
+      ...fluidToneColors(isDark(), tone.hue, tone.depth),
     })
 
     // WebGL2 不可用时 attachFluidShader 返回全空操作的句柄 —— 环境层自己的
@@ -71,6 +102,13 @@ export function mountAmbient(options: AmbientOptions): () => void {
     const observer = new MutationObserver(() => live?.setParams(params()))
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
     disposers.push(() => observer.disconnect())
+
+    // 登记当前这一份，供 setAmbientTone 实时调色。
+    const handle = { tone, refresh: (): void => live?.setParams(params()) }
+    liveTone = handle
+    disposers.push(() => {
+      if (liveTone === handle) liveTone = null
+    })
   } catch (error) {
     // 装饰层的失败绝不能拖垮材质层：环境层挂不上时安静退化成「没有流体背景」，
     // 玻璃本身照常工作。这条边界由 scripts/smoke-load.mjs 覆盖。

@@ -118,6 +118,7 @@ export function apply(ctx: ClientContext): void {
       stopStamper = startSeamStamper()
       // 流体板随后挂上（WebGL 初始化是同步的）。
       unmountAmbient = mountAmbient({ hue: config.hue, depth: config.depth })
+      // ⚠️ 临时：调色面板（拖它实时改流体配色，数值显示在面板上）。
       // 右下角的诊断角标已下线（视觉定稿前移除）：它会在页面上多挂一个节点。
       // 模块与 `config.debug` 按项目约定保留并标注 @deprecated，需要时可一行恢复。
     }
