@@ -502,6 +502,26 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
       .toContain('--dsw-alias-settings-card-fill: var(--aqua-well)')
   })
 
+  /**
+   * 提问 / 计划确认 / 审批三块面板：它们浮在会话之上，底色吃
+   * `--dsw-specific-input-major` —— 宿主原值**不透明**、所以宿主没给模糊，
+   * 而本主题把它改成半透明 → 「半透明 + 文字原样透上来」（用户实测报障）。
+   * 这三条断言守住：① 三块面板都补了模糊；② 模糊直接画在卡片上（不能另起伪元素
+   * 把填充留在卡片，那样模糊到的是卡片自己的纯色底）；③ token 的消费方清单要写全。
+   */
+  it('浮在会话之上的三块面板都补了背景模糊（提问 / 计划确认 / 审批）', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = clean.match(
+      /body\[data-dsh-aqua-glass\] :is\(\[data-question-key\], \[data-plan-review-key\], \[data-approval-key\]\)\s*>\s*\*\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(rule, '三块面板的补模糊规则没解析出来').not.toBe('')
+    expect(rule, '三块面板必须补上背景模糊').toContain('backdrop-filter: var(--aqua-filter)')
+    // 反面：不能用 `::before` 之类的伪元素承载（填充留在卡片上就等于没糊）
+    expect(rule, '模糊要画在卡片本身，不要挪到伪元素').not.toContain('content:')
+    // 消费方清单（7 处）必须写在注释里，避免以后又漏一处
+    expect(MATERIAL_CSS, '--dsw-specific-input-major 的消费方清单没写全').toContain('账号提示浮卡')
+  })
+
   it('侧栏按钮走按钮专用的一档（比卡片更淡），不是卡片玻璃', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const buttonRule = clean.match(/body\[data-dsh-aqua-glass\] button\[class\*='newSession'\]\s*\{([^}]*)\}/)?.[1] ?? ''

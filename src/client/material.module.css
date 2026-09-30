@@ -490,6 +490,27 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card]::after {
   pointer-events: none;
 }
 
+/* ── 提问 / 计划确认 / 审批面板：补背景模糊 ───────────────────────────────
+ *
+ * 这三块面板都**浮在会话内容之上**，底色用的是 `--dsw-specific-input-major`。
+ * 那个 token 在宿主侧是**不透明**的输入面底色（浅色态近白），宿主因此压根没给
+ * 它们任何 `backdrop-filter`；而本主题把它改成了半透明（`--aqua-well`，40%），
+ * 于是这三块变成「半透明 + 没模糊」：底下的对话文字原样透上来，完全读不清。
+ * （用户实测报障：「提问弹出层没加背景模糊，和下面重叠了」。）
+ *
+ * 锚点用面板自己发出的语义 key，比哈希类名稳；卡片是这些 key 的**直接子元素**
+ * （提问/审批是 `<div class=card>`，计划确认是 `<section class=card>`），
+ * 所以用 `> *` 命中，不依赖任何类名。
+ *
+ * ⚠️ 模糊**直接画在卡片上**，不另起伪元素：宿主那句 `background` 就在卡片上，
+ *    若把填充留在卡片、模糊放到伪元素，伪元素模糊到的就是卡片自己那块纯色底
+ *    —— 发送卡那次已经证明那样等于没糊（填充必须跟着模糊一起搬）。
+ * ⚠️ 这三块面板内部没有自带 blur 的浮层（菜单都是 portal 到 body 的），
+ *    所以不怕「backdrop-filter 成了 backdrop root、把后代的模糊吃掉」那个坑。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-question-key], [data-plan-review-key], [data-approval-key]) > * {
+  backdrop-filter: var(--aqua-filter);
+}
+
 /* 数据行：**保持原生布局**（不改位置、不改尺寸、不与发送卡融合），
    只把它自带的不透明底拿掉 —— 那正是「发送栏下面那块白色」。
    发送栏自己仍是一张独立的玻璃卡。 */
@@ -532,7 +553,22 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
   --dsw-alias-markdown-code-block-banner: var(--aqua-well);
   /* 行内代码 —— 就是正文里 `--aqua-edge` 那种高亮块 */
   --dsw-alias-markdown-inline-code: var(--aqua-well);
-  /* 聊天里的文件卡 */
+  /* 输入面主色 —— ⚠️ 这条覆盖的连带影响比其他几条大，改动前先读完。
+   *
+   * 宿主原值是**不透明**的（浅色态近白 `neutral-bluish-00`），它的 7 个消费方
+   * 因此**全都没有 `backdrop-filter`**：
+   *   1. 发送卡（ui-conversation InputBar `.card`）      → 已由本文件的 `[data-composer-card]` 单独画玻璃，与这个 token 无关了
+   *   2. 提问面板（ui-user-questions QuestionComposer）   → 浮在会话之上，本文件按 `[data-question-key]` 补了模糊
+   *   3. 计划确认面板（PlanReviewPanel）                  → 同上，`[data-plan-review-key]`
+   *   4. 审批面板（ui-approval ApprovalPanel）            → 同上，`[data-approval-key]`
+   *   5. 附件栏（ui-attachment AttachmentRail）           → 在发送卡玻璃之内，半透明即可
+   *   6. 图片灯箱（ui-primitives ImageLightbox ×2）       → ⚠️ 未处理：半透明的白纱当灯箱底，观感偏亮
+   *   7. 账号提示浮卡（ui-settings-account AccountNotice）→ ⚠️ 未处理：同样缺模糊
+   *
+   * 也就是说：**每把一个消费方变成半透明，就得同时给它补模糊**，否则就是
+   * 「半透明 + 底下文字原样透上来」（用户实测报障过两次：发送卡、提问面板）。
+   * 早期注释写的"聊天里的文件卡"是错的 —— 上面这 7 处才是真实消费方。
+   * 后两处（灯箱 / 账号提示）等用户确认后再按同思路处理。 */
   --dsw-specific-input-major: var(--aqua-well);
   /* 我发出的对话气泡（ui-chat 的 `.bubble`）。宿主默认是**不透明**的
      `deepseek-50` / `neutral-bluish-850`，所以在流体上是两块实心色块。
