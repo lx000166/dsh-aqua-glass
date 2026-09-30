@@ -21,7 +21,7 @@ export interface GlassConfig {
   enabled: boolean
   /** 玻璃模糊半径（px）。 */
   blur: number
-  /** 磨砂度：玻璃底色的不透明度，0–1。 */
+  /** 磨砂度**乘数**（0–2，1 = 上游原版）。作用在配方的基础不透明度上。 */
   frost: number
   /** 圆角（px）。 */
   radius: number
@@ -38,8 +38,9 @@ export interface GlassConfig {
 
 export const DEFAULT_CONFIG: GlassConfig = {
   enabled: true,
-  blur: 18,
-  frost: 0.55,
+  // 上游 aqua.module.css 的默认就是 blur 14px / frost 1 / 圆角 14px。
+  blur: 14,
+  frost: 1,
   radius: 14,
   hue: 320,
   depth: 25,
@@ -71,7 +72,7 @@ export function readConfig(): GlassConfig {
     return {
       enabled: typeof candidate.enabled === 'boolean' ? candidate.enabled : DEFAULT_CONFIG.enabled,
       blur: clamp(Number(candidate.blur), 0, 60, DEFAULT_CONFIG.blur),
-      frost: clamp(Number(candidate.frost), 0, 1, DEFAULT_CONFIG.frost),
+      frost: clamp(Number(candidate.frost), 0, 2, DEFAULT_CONFIG.frost),
       radius: clamp(Number(candidate.radius), 0, 40, DEFAULT_CONFIG.radius),
       hue: clamp(Number(candidate.hue), 0, 360, DEFAULT_CONFIG.hue),
       depth: clamp(Number(candidate.depth), 0, 100, DEFAULT_CONFIG.depth),

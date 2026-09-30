@@ -1,60 +1,69 @@
 /**
  * L2 材质层 —— 玻璃本体。
  *
- * 全部规则都以 `body[data-dsh-aqua-glass]` 为前缀：总开关一关，整个作用域
- * 退出，宿主回到原样，不需要逐条撤销。
+ * 全部规则以 `body[data-dsh-aqua-glass]` 为前缀：总开关一关，整个作用域退出。
  *
- * 选择器与 `seam.ts` 一一对应；`seam.test.ts` 会读这份文件的文本，逐条断言
- * 缝合点仍原样存在。改这里的选择器，就必须同步改 seam.ts。
+ * ## 两条踩过的坑，写在这里防止复发
  *
- * 可调参数由 config.ts 在运行时写到 `document.documentElement` 上
- * （`--aqua-blur` / `--aqua-frost` / `--aqua-radius`），这里只给兜底值。
+ * **1. 只用标准 `backdrop-filter`，绝不写 `-webkit-` 前缀。**
+ * lightningcss 在同一个声明块里同时看到标准和前缀版本时，会**丢掉标准那一条**，
+ * 只留 `-webkit-backdrop-filter`；而 Electron 的 Chromium 忽略这个前缀别名。
+ * 结果是四块面板只剩半透明填充、一点模糊都没有 —— 看起来完全像"没生效"。
+ * `scripts/verify-bundle.mjs` 现在会断言前缀版本**不存在**。
  *
- * ## 玻璃可见性的前提
+ * **2. 玻璃必须和有内容的背景一起交付。**
+ * `backdrop-filter` 只是把背后已有的东西糊掉；背后是纯色时，玻璃和实心面板
+ * 在视觉上完全一样。L3 的流体背景板负责提供那块有结构的背景。
  *
- * `backdrop-filter` 是把**背后已有的东西**糊掉。如果背后是纯色（宿主默认的
- * `--dsw-alias-bg-base`），玻璃和实心面板在视觉上完全一样——这是 S0 第一版
- * 看起来「什么都没变」的直接原因。所以这里必须先铺一层背景（顶替 L3 流体
- * 背景的位置），玻璃才有东西可糊。
+ * ## 配方来源
  *
- * 浅色态的默认值曾经写成「白色填充 + 白色描边」，在白底上三重不可见；现在
- * 改为带色相的玻璃 + 明确的中性描边。
+ * 以下数值全部取自上游 `reference/repos/aqua-upstream/src/client/aqua.module.css`
+ * （浅色 `--dsh-aqua-glass-card-light` = 白 42% × frost，深色为中性冷灰 50% × frost），
+ * 只把作用域从上游的 `[data-dsh-aqua]` 换成本插件属性。不再自创透明度。
+ *
+ * 可调参数由 config.ts 在运行时写到 `documentElement`（`--aqua-blur` / `--aqua-frost`
+ * / `--aqua-radius`）；`--aqua-frost` 是**乘数**（0–2，1 = 原版），与上游同义。
  */
 
-/* ── 变量 ─────────────────────────────────────────────────────────────── */
+/* ── 变量：上游的卡片玻璃配方 ─────────────────────────────────────────── */
 
 body[data-dsh-aqua-glass] {
-  --aqua-blur: 18px;
-  --aqua-frost: 0.55;
+  --aqua-blur: 14px;
+  --aqua-frost: 1;
   --aqua-radius: 14px;
-  /* 浅色：带一点冷色相的玻璃，白底上能看出来 */
-  --aqua-line: rgb(64 96 150 / 0.28);
-  --aqua-glass: rgb(214 231 255 / var(--aqua-frost));
-  --aqua-glass-strong: rgb(226 239 255 / 0.78);
-  --aqua-shadow: 0 8px 32px rgb(24 48 92 / 0.16);
-  --aqua-filter: blur(var(--aqua-blur)) saturate(1.6);
+  --aqua-glass: color-mix(in srgb, rgb(255 255 255) calc(42% * var(--aqua-frost)), transparent);
+  --aqua-surface: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--aqua-frost)), transparent);
+  --aqua-surface-hover: color-mix(in srgb, rgb(255 255 255) calc(74% * var(--aqua-frost)), transparent);
+  --aqua-line: rgb(19 45 83 / 0.26);
+  --aqua-line-dark: rgb(148 180 220 / 0.32);
+  --aqua-shadow: 0 10px 34px rgb(19 45 83 / 0.16);
+  --aqua-shadow-dark: 0 8px 30px rgb(2 6 14 / 0.32);
+  --aqua-inset: inset 0 1px 0 rgb(255 255 255 / 0.5);
+  --aqua-inset-dark: inset 0 1px 0 rgb(255 255 255 / 0.07);
+  --aqua-filter: blur(var(--aqua-blur));
 }
 
-/* 深色态：宿主把标记放在 body 上 */
+/* 深色态：中性冷灰，不是蓝 —— 否则磨砂度拉满会露出蓝底，像一块蓝板 */
 body[data-dsh-aqua-glass][data-ds-dark-theme] {
-  --aqua-line: rgb(150 182 235 / 0.22);
-  --aqua-glass: rgb(22 30 46 / var(--aqua-frost));
-  --aqua-glass-strong: rgb(28 38 58 / 0.82);
-  --aqua-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+  --aqua-glass: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--aqua-frost)), transparent);
+  --aqua-surface: color-mix(in srgb, rgb(42 46 56) calc(62% * var(--aqua-frost)), transparent);
+  --aqua-surface-hover: color-mix(in srgb, rgb(54 58 70) calc(70% * var(--aqua-frost)), transparent);
+  --aqua-line: var(--aqua-line-dark);
+  --aqua-shadow: var(--aqua-shadow-dark);
+  --aqua-inset: var(--aqua-inset-dark);
 }
 
 /* ── 让 L3 流体背景板透出来 ───────────────────────────────────────────── */
 
-/* body 保持宿主基色。流体板是 z-index:-1 的 fixed 层，画在 body 背景之上、
-   应用内容之下，所以这里**不能**给 body 铺不透明底。 */
+/* body 保持宿主基色；`:root` 没有背景，所以它会按 CSS 规则上提到 canvas，
+   画在整个画面最底层 —— 不会盖住流体。 */
 body[data-dsh-aqua-glass] {
   background: var(--dsw-alias-bg-base);
 }
 
 /* 这几层各自画着不透明底色，不置透明就会把流体整块盖死。
-   `[data-phase]`（会话阶段容器）与 `[data-dsh-details]`（右侧详情列）是上游
-   aqua.module.css 明确点名要抬起的两层，照搬过来。
-   FRAME 是本项目唯一没有 data-* 兜底的缝合点，见 seam.ts 的说明。 */
+   `[data-phase]` 与 `[data-dsh-details]` 是上游点名要抬起的两层。
+   FRAME 是本项目唯一没有 data-* 兜底的缝合点，见 seam.ts。 */
 body[data-dsh-aqua-glass] [class*='_frame'],
 body[data-dsh-aqua-glass] [id='root'],
 body[data-dsh-aqua-glass] [data-phase],
@@ -63,62 +72,97 @@ body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) 
   background: transparent !important;
 }
 
-/* ── 顶栏 ─────────────────────────────────────────────────────────────── */
+/* ── 侧栏：悬浮玻璃卡（上游 mica 形态）─────────────────────────────────── */
 
-body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
-  background: var(--aqua-glass-strong) !important;
+body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) {
+  position: relative;
+  /* 高于顶栏卡（8）：设置面板是困在这个层叠上下文里的 fixed 浮层，
+     侧栏必须压过顶栏，否则面板顶边会被顶栏盖住。 */
+  z-index: 9;
+  margin: 12px;
+  padding: 10px 12px 14px;
+  border: 1px solid var(--aqua-line);
+  border-right: 1px solid rgb(150 190 245 / 0.65);
+  border-radius: 20px;
+  background: var(--aqua-glass);
   backdrop-filter: var(--aqua-filter);
-  -webkit-backdrop-filter: var(--aqua-filter);
-  border-bottom: 1px solid var(--aqua-line);
+  box-shadow: var(--aqua-inset), var(--aqua-shadow);
+  overflow: hidden;
 }
 
-/* ── 侧栏 ─────────────────────────────────────────────────────────────── */
-
+/* 侧栏根在展开宽度上被行内样式冻住（收起交叉淡出需要），放开它，
+   内容才会跟着玻璃面板的宽度走，而不是溢出右边缘。 */
 body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) > div {
-  background: var(--aqua-glass) !important;
-  backdrop-filter: var(--aqua-filter);
-  -webkit-backdrop-filter: var(--aqua-filter);
-  border-right: 1px solid var(--aqua-line);
+  width: 100% !important;
 }
 
-/* 品牌行本身不再叠一层底色，避免和侧栏玻璃糊成两片 */
+/* 品牌行不再自带底色，避免和侧栏玻璃糊成两片 */
 body[data-dsh-aqua-glass] [class*='logoRow'] {
   background: transparent !important;
 }
 
 body[data-dsh-aqua-glass] [data-slot='sidebar.settings'] > :is(button, [role='button']) {
-  border-radius: var(--aqua-radius);
+  border-radius: 10px;
   transition: background 160ms ease;
 }
 
-/* ── 发送栏 ───────────────────────────────────────────────────────────── */
+/* ── 会话顶栏：悬浮玻璃卡，配方与发送栏同款 ───────────────────────────── */
+
+body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+  margin: 12px 16px 0;
+  padding: 10px 16px 8px;
+  border: 1px solid var(--aqua-line);
+  /* 下边缘向聊天区敞开：去掉底边框与原分隔线 */
+  border-bottom-color: transparent;
+  border-radius: 20px;
+  background: var(--aqua-glass);
+  box-shadow: var(--aqua-inset), var(--aqua-shadow);
+  backdrop-filter: var(--aqua-filter);
+}
+
+/* ── 发送栏：站点 start-chat 玻璃配方，24px 圆角 ──────────────────────── */
 
 body[data-dsh-aqua-glass] [data-composer-card] {
-  background: var(--aqua-glass-strong) !important;
-  backdrop-filter: var(--aqua-filter);
-  -webkit-backdrop-filter: var(--aqua-filter);
+  position: relative;
+  z-index: 8;
+  background: var(--aqua-glass);
   border: 1px solid var(--aqua-line);
-  border-radius: var(--aqua-radius);
-  box-shadow: var(--aqua-shadow);
+  border-radius: 24px;
+  box-shadow: var(--aqua-inset), 0 10px 36px rgb(19 45 83 / 0.16);
+  backdrop-filter: var(--aqua-filter);
 }
 
-/* 英雄区（空白会话）的发送栏更透，让背景露出来 */
+body[data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
+  background: var(--aqua-glass);
+  border-color: var(--aqua-line-dark);
+  box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
+}
+
+/* 英雄区（空白会话）更透一点，让水色透上来 */
 body[data-dsh-aqua-glass] [data-phase='hero'] [data-composer-card] {
-  background: var(--aqua-glass) !important;
+  background: var(--aqua-glass);
 }
 
-/* 会话进行中：贴近底部，收一点圆角 */
 body[data-dsh-aqua-glass] [data-phase='active'] [data-composer-card] {
-  border-radius: calc(var(--aqua-radius) + 4px);
+  border-radius: 24px;
 }
 
-/* ── 新建会话按钮 ─────────────────────────────────────────────────────── */
+/* ── 新建会话按钮：小尺寸玻璃原子 ─────────────────────────────────────── */
 
 body[data-dsh-aqua-glass] button[class*='newSession'] {
-  background: var(--aqua-glass) !important;
-  backdrop-filter: blur(calc(var(--aqua-blur) * 0.6));
-  -webkit-backdrop-filter: blur(calc(var(--aqua-blur) * 0.6));
-  border: 1px solid var(--aqua-line);
+  background: var(--aqua-surface);
+  border: 1px solid rgb(19 45 83 / 0.16);
   border-radius: var(--aqua-radius);
-  box-shadow: var(--aqua-shadow);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45);
+  backdrop-filter: blur(var(--aqua-blur));
+}
+
+body[data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
+  background: var(--aqua-surface-hover);
+}
+
+body[data-dsh-aqua-glass][data-ds-dark-theme] button[class*='newSession'] {
+  background: var(--aqua-surface);
+  border-color: rgb(148 180 220 / 0.2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
 }

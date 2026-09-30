@@ -82,10 +82,24 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(SELECTORS.some((s) => s.startsWith(`body[${BODY_ATTRIBUTE}]`) && !s.includes('data-ds-dark-theme'))).toBe(true)
   })
 
-  it('玻璃三要素齐备：backdrop-filter / 边框 / 圆角', () => {
+  it('玻璃三要素齐备：backdrop-filter / 圆角 / 卡片玻璃配方', () => {
     expect(MATERIAL_CSS).toContain('backdrop-filter')
-    expect(MATERIAL_CSS).toContain('-webkit-backdrop-filter')
     expect(MATERIAL_CSS).toMatch(/border-radius/)
+    expect(MATERIAL_CSS).toMatch(/--aqua-glass:/)
+  })
+
+  /**
+   * 这条是踩过坑之后加的：lightningcss 在同一个声明块里同时看到标准与前缀版本的
+   * `backdrop-filter` 时会**丢掉标准那一条**，只留 `-webkit-backdrop-filter`；
+   * 而 Electron 的 Chromium 忽略该前缀别名 —— 结果四块面板只剩半透明填充、
+   * 完全没有模糊，看起来和"主题没生效"一模一样。
+   */
+  it('绝不写 -webkit-backdrop-filter 前缀（会被 lightningcss 反噬）', () => {
+    // 只看声明，不看散文：注释里正当地提到了这个属性名。
+    for (const [name, css] of STYLESHEETS) {
+      const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
+      expect(declarations, `${name} 的声明里出现了 -webkit-backdrop-filter`).not.toContain('-webkit-backdrop-filter')
+    }
   })
 
   it('流体背景板的容器、canvas 与小鱼都有样式', () => {
@@ -184,7 +198,7 @@ describe('配置读取', () => {
 
   it('坏 JSON 不抛错，退回默认值', () => {
     Object.defineProperty(globalThis, 'localStorage', { value: stubStorage({ 'dsh-aqua-glass': '{oops' }), configurable: true })
-    expect(readConfig().blur).toBe(18)
+    expect(readConfig().blur).toBe(14)
   })
 
   it('越界数值被夹到合法区间', () => {

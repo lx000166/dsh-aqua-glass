@@ -68,6 +68,12 @@ if (!client.includes('data-plugin-css')) {
 if (!client.includes('backdrop-filter')) {
   failures.push('lib/client.js 里找不到 backdrop-filter —— 玻璃样式没进产物')
 }
+// lightningcss 在同一声明块里同时看到标准与前缀版本的 backdrop-filter 时会丢掉
+// 标准那一条，只留 -webkit- 别名；而 Electron 的 Chromium 忽略该别名 —— 结果是
+// 玻璃完全没有模糊，看起来就像主题没生效。这条断言把该回归钉死。
+if (client.includes('-webkit-backdrop-filter')) {
+  failures.push('lib/client.js 里出现了 -webkit-backdrop-filter —— 标准属性会被 lightningcss 丢掉，模糊将整体失效')
+}
 
 // ── 4. 客户端产物：总开关与缝合点 ─────────────────────────────────────────
 const looseClient = loose(client)
