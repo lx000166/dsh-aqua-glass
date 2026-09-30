@@ -81,7 +81,14 @@ export function apply(ctx: ClientContext): void {
       // 总开关属性先落，样式表立即生效；流体板随后挂上（WebGL 初始化是同步的）。
       unmountAmbient = mountAmbient({ hue: config.hue, depth: config.depth })
       // 角标最后挂，所以「看到角标」等价于「apply 跑到底了」。
-      if (config.debug) unmountDiagnostic = mountDiagnostic(VERSION)
+      // 它是辅助工具，自身出错绝不能影响主题 —— 冒烟脚本曾在这里抓到过一次。
+      if (config.debug) {
+        try {
+          unmountDiagnostic = mountDiagnostic(VERSION)
+        } catch (error) {
+          console.warn('aqua: 诊断角标挂载失败，已跳过', error)
+        }
+      }
     }
 
     mount()

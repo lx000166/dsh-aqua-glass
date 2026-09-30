@@ -65,12 +65,15 @@ export function mountDiagnostic(version: string): () => void {
    * canvas 没被定尺寸（着色器没跑起来），或者跑起来了但被别的东西盖住。
    * 这几行直接把答案读出来 —— 用 `getComputedStyle` 问"谁在画背景"，
    * 用 canvas 的 client/缓冲尺寸问"着色器有没有干活"。
+   *
+   * **每个探针都必须能独立失败**：查询类 API 在不同环境里未必齐全
+   * （jsdom 没有 `elementFromPoint`），一个探针抛错绝不能把角标甚至整个
+   * `apply` 带崩 —— 这条由冒烟脚本覆盖。
    */
   const runtimeLines = (): string[] => {
     const lines: string[] = []
-    const canvas = document.querySelector<HTMLCanvasElement>('[data-dsh-aqua-fluid-canvas]')
-    const ambient = document.querySelector<HTMLElement>('[data-dsh-aqua-ambient]')
 
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-dsh-aqua-fluid-canvas]')
     if (canvas !== null) {
       let gl = 'n/a'
       try {
@@ -81,20 +84,36 @@ export function mountDiagnostic(version: string): () => void {
       lines.push(`canvas ${canvas.clientWidth}x${canvas.clientHeight} buf ${canvas.width}x${canvas.height} ${gl}`)
     }
 
+    const ambient = document.querySelector<HTMLElement>('[data-dsh-aqua-ambient]')
     if (ambient !== null) {
-      const style = getComputedStyle(ambient)
-      lines.push(`amb z=${style.zIndex} pos=${style.position} op=${style.opacity}`)
+      try {
+        const style = getComputedStyle(ambient)
+        lines.push(`amb z=${style.zIndex} pos=${style.position} op=${style.opacity}`)
+      } catch {
+        lines.push('amb style n/a')
+      }
     }
 
-    const bodyStyle = getComputedStyle(document.body)
-    const htmlStyle = getComputedStyle(document.documentElement)
-    lines.push(`body-bg ${bodyStyle.backgroundColor} html-bg ${htmlStyle.backgroundColor}`)
+    try {
+      const bodyBg = getComputedStyle(document.body).backgroundColor
+      const htmlBg = getComputedStyle(document.documentElement).backgroundColor
+      lines.push(`body-bg ${bodyBg} html-bg ${htmlBg}`)
+    } catch {
+      lines.push('bg n/a')
+    }
 
     // 视口中心点上的元素：如果它带着不透明底色，流体就是被它盖住的。
-    const probe = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)
-    if (probe !== null) {
-      const probeStyle = getComputedStyle(probe)
-      lines.push(`mid <${probe.tagName.toLowerCase()}> bg ${probeStyle.backgroundColor}`)
+    if (typeof document.elementFromPoint === 'function') {
+      try {
+        const probe = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)
+        if (probe !== null) {
+          lines.push(`mid <${probe.tagName.toLowerCase()}> bg ${getComputedStyle(probe).backgroundColor}`)
+        }
+      } catch {
+        lines.push('mid n/a')
+      }
+    } else {
+      lines.push('mid n/a (no elementFromPoint)')
     }
     return lines
   }
