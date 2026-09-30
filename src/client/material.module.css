@@ -380,12 +380,20 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pan
  * ⚠️ 内高光 `--aqua-inset` 必须跟着走：负 z-index 的伪元素画在**元素自己的
  *    背景与 inset 阴影之上**，留在卡上会被那层 30% 白糊掉。
  *    （`--aqua-inset` 在深色块里已被重绑到 `--aqua-inset-dark`，无需再写一条深色规则。）
- * ⚠️ 也不能把填充留在卡上：那样伪元素模糊到的是卡自己那块纯色底，等于没糊。 */
+ * ⚠️ 也不能把填充留在卡上：那样伪元素模糊到的是卡自己那块纯色底，等于没糊。
+ * ⚠️ **必须显式写 `background: transparent`**：宿主 `.card` 自己画着一层
+ *    `background: var(--dsw-specific-input-major)`（本主题里等于 `--aqua-well`，
+ *    深色态是 40% 的蓝灰）。以前那句 `background: var(--aqua-glass)` 是把它
+ *    **替换**掉的，所以看不出来；填充一旦搬走，这层宿主底色就会露出来 ——
+ *    它压在伪元素玻璃**下面**，被 `backdrop-filter` 一起采样后再叠 30% 白，
+ *    表现为「卡比侧栏/顶栏更实、还发蓝」（实测症状）。侧栏那条同理，见上面的
+ *    「侧栏内容根的自带底色被置透明」。 */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card] {
   position: relative;
   z-index: 8;
   border: none;
   border-radius: 24px;
+  background: transparent;
   box-shadow: 0 10px 36px rgb(19 45 83 / 0.16);
 }
 

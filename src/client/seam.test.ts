@@ -253,6 +253,14 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     // 伪元素敢用 z-index: -1 的前提是卡自己成层叠上下文；否则那层玻璃会掉到
     // 转写区底下（卡上还有 z-index: 8 负责压住转写区）。
     expect(cardRule, '发送卡必须自建层叠上下文，::before 的 -1 才安全').toMatch(/z-index:\s*\d/)
+    // ⚠️ 宿主 `.card` 自己画着一层 `--dsw-specific-input-major`（本主题里 = --aqua-well，
+    // 深色态是 40% 蓝灰）。以前我们用 `background: var(--aqua-glass)` 把它替换掉了；
+    // 填充搬去伪元素后若不显式置透明，这层宿主底色就会压在玻璃**下面**，被
+    // backdrop-filter 一起采样 → 卡比侧栏/顶栏更实、还发蓝（用户实测报障）。
+    expect(
+      cardRule,
+      '卡上必须显式 background: transparent —— 否则宿主那层输入底色会从玻璃底下透出来',
+    ).toContain('background: transparent')
 
     const beforeRule = clean.match(
       /body\[data-dsh-aqua-glass\] \[data-composer-card\]::before\s*\{([^}]*)\}/,
