@@ -124,7 +124,7 @@ check(applyError === null, `apply(ctx) 不抛错${applyError === null ? '' : `�
 
 const root = app.document.documentElement
 check(app.document.body.hasAttribute('data-dsh-aqua-glass'), 'apply 后 body 带上了总开关属性')
-check(root.style.getPropertyValue('--aqua-blur') === '14px', 'apply 后写入了 --aqua-blur 变量')
+check(root.style.getPropertyValue('--aqua-blur') === '12px', 'apply 后写入了 --aqua-blur 变量')
 check(root.style.getPropertyValue('--aqua-frost') === '1', 'apply 后写入了 --aqua-frost 变量')
 check(root.style.getPropertyValue('--aqua-radius') === '14px', 'apply 后写入了 --aqua-radius 变量')
 

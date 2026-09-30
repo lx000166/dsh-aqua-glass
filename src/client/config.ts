@@ -38,8 +38,9 @@ export interface GlassConfig {
 
 export const DEFAULT_CONFIG: GlassConfig = {
   enabled: true,
-  // 上游 aqua.module.css 的默认就是 blur 14px / frost 1 / 圆角 14px。
-  blur: 14,
+  // 上游 aqua.module.css 的默认是 blur 14px / frost 1；本主题把模糊降到 12px
+  // 并把玻璃填充从 42% 降到 30%，因为流体本身较饱和，42% 会"泛白"。
+  blur: 12,
   frost: 1,
   radius: 14,
   hue: 320,

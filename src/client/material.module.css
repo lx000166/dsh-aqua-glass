@@ -30,12 +30,14 @@
 /* ── 变量：上游的卡片玻璃配方 ─────────────────────────────────────────── */
 
 body[data-dsh-aqua-glass] {
-  --aqua-blur: 14px;
+  --aqua-blur: 12px;
   --aqua-frost: 1;
   --aqua-radius: 14px;
-  --aqua-glass: color-mix(in srgb, rgb(255 255 255) calc(42% * var(--aqua-frost)), transparent);
-  --aqua-surface: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--aqua-frost)), transparent);
-  --aqua-surface-hover: color-mix(in srgb, rgb(255 255 255) calc(74% * var(--aqua-frost)), transparent);
+  /* 玻璃填充：上游是 42%，但压在本主题这块饱和的流体上会"泛白"，
+     降到 30% 让水色透上来（frost 仍是可调乘数）。 */
+  --aqua-glass: color-mix(in srgb, rgb(255 255 255) calc(30% * var(--aqua-frost)), transparent);
+  --aqua-surface: color-mix(in srgb, rgb(255 255 255) calc(48% * var(--aqua-frost)), transparent);
+  --aqua-surface-hover: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--aqua-frost)), transparent);
   --aqua-line: rgb(19 45 83 / 0.26);
   --aqua-line-dark: rgb(148 180 220 / 0.32);
   --aqua-shadow: 0 10px 34px rgb(19 45 83 / 0.16);
@@ -43,32 +45,37 @@ body[data-dsh-aqua-glass] {
   --aqua-inset: inset 0 1px 0 rgb(255 255 255 / 0.5);
   --aqua-inset-dark: inset 0 1px 0 rgb(255 255 255 / 0.07);
   --aqua-filter: blur(var(--aqua-blur));
-  /* 液态玻璃渐变描边：左上高光 → 中段透明 → 右下冷色反光 → 收口高光。
-     作为 `border-box` 背景层铺在 1px 透明边框下（见各卡片的 background 两层写法），
-     这样既能跟随 border-radius，又不需要 mask。 */
+  /* 液态玻璃描边。
+     关键是**明暗成对**：左上一点镜面高光，右下转成冷色暗折，中段留过渡。
+     只做亮的一半（首版全是白）在白玻璃上等于没有边框 —— 白画在白上不可见。
+     作为 `border-box` 背景层铺在 1px 透明边框下（见各卡片的两层 background），
+     既能跟随 border-radius，又不需要 mask。 */
   --aqua-edge: linear-gradient(
     140deg,
-    rgb(255 255 255 / 0.92) 0%,
-    rgb(255 255 255 / 0.18) 32%,
-    rgb(158 205 255 / 0.38) 64%,
-    rgb(255 255 255 / 0.78) 100%
+    rgb(255 255 255 / 1) 0%,
+    rgb(255 255 255 / 0.42) 16%,
+    rgb(96 132 184 / 0.34) 48%,
+    rgb(62 96 148 / 0.5) 82%,
+    rgb(120 158 208 / 0.46) 100%
   );
 }
 
 /* 深色态：中性冷灰而非蓝 —— 否则磨砂度拉满会露出蓝底，像一块蓝板 */
 body[data-dsh-aqua-glass][data-ds-dark-theme] {
-  --aqua-glass: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--aqua-frost)), transparent);
-  --aqua-surface: color-mix(in srgb, rgb(42 46 56) calc(62% * var(--aqua-frost)), transparent);
-  --aqua-surface-hover: color-mix(in srgb, rgb(54 58 70) calc(70% * var(--aqua-frost)), transparent);
+  --aqua-glass: color-mix(in srgb, rgb(34 38 47) calc(38% * var(--aqua-frost)), transparent);
+  --aqua-surface: color-mix(in srgb, rgb(42 46 56) calc(48% * var(--aqua-frost)), transparent);
+  --aqua-surface-hover: color-mix(in srgb, rgb(54 58 70) calc(58% * var(--aqua-frost)), transparent);
   --aqua-line: var(--aqua-line-dark);
   --aqua-shadow: var(--aqua-shadow-dark);
   --aqua-inset: var(--aqua-inset-dark);
+  /* 深色底上明暗反过来才读得出来：高光更亮，暗折更沉 */
   --aqua-edge: linear-gradient(
     140deg,
-    rgb(255 255 255 / 0.34) 0%,
-    rgb(255 255 255 / 0.05) 34%,
-    rgb(140 190 255 / 0.26) 66%,
-    rgb(255 255 255 / 0.22) 100%
+    rgb(255 255 255 / 0.5) 0%,
+    rgb(255 255 255 / 0.16) 18%,
+    rgb(24 34 48 / 0.55) 52%,
+    rgb(14 22 34 / 0.7) 84%,
+    rgb(120 160 215 / 0.34) 100%
   );
 }
 

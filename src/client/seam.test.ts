@@ -259,7 +259,7 @@ describe('配置读取', () => {
 
   it('坏 JSON 不抛错，退回默认值', () => {
     Object.defineProperty(globalThis, 'localStorage', { value: stubStorage({ 'dsh-aqua-glass': '{oops' }), configurable: true })
-    expect(readConfig().blur).toBe(14)
+    expect(readConfig().blur).toBe(12)
   })
 
   it('越界数值被夹到合法区间', () => {
