@@ -90,11 +90,15 @@ export const MENU_SURFACE = '[data-menu-material]'
 export const CHANGES_PREVIEW = '[data-changes-hover-preview]'
 
 /**
- * 应用弹窗。设置面板（ui-settings-general 的 SettingsRoot）与其余弹窗
- * （ui-primitives 的 Modal）是两套外壳，但都带这个标准 ARIA role，
- * 所以一个锚点全覆盖。两边的底色都是 `--dsw-alias-bg-layer-2`（全局禁区）。
+ * 应用弹窗（设置面板 + ui-primitives 的 Modal）。
+ *
+ * ⚠️ 锚点必须是这一对，**不能只用裸的 `[role='dialog']`**：
+ * 图片灯箱与用量面板也带 `role="dialog"`，但它们自己是 `position: fixed`，
+ * 而我们给弹窗写的规则里有 `background`/`border`/`corner-shape`（曾经还有
+ * `position: relative`，直接把它们的 fixed 覆盖掉、挤到页面下方 —— 用户报障过）。
+ * 两套真弹窗的外壳都带 `role="presentation"`，用它把范围收紧。
  */
-export const DIALOG = "[role='dialog']"
+export const DIALOG = "[role='presentation'] > [role='dialog']"
 
 /** 新建会话按钮。 */
 export const NEW_SESSION = `button[class*='newSession']`

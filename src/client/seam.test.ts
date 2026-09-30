@@ -390,7 +390,7 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     // 唯一例外是弹窗作用域（`[role='dialog']`）—— 那里的控件本来就压在玻璃上，
     // 背后是模糊过的底；详见下一条用例。所以先把弹窗那条规则摘掉再扫。
     const outsideDialogs = clean.replace(
-      /body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{[^}]*\}/g,
+      /body\[data-dsh-aqua-glass\] \[role='presentation'\] > \[role='dialog'\]\s*\{[^}]*\}/g,
       '',
     )
     for (const forbidden of [
@@ -470,7 +470,7 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     // 这两条与滚动条无关，是同一批 token 旁边的禁区，顺手再钉一次
     // （弹窗作用域那条例外在上面那条用例里单独放行）。
     expect(
-      clean.replace(/body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{[^}]*\}/g, ''),
+      clean.replace(/body\[data-dsh-aqua-glass\] \[role='presentation'\] > \[role='dialog'\]\s*\{[^}]*\}/g, ''),
       '不要碰 bg-layer-*',
     ).not.toContain('--dsw-alias-bg-layer-1:')
   })
@@ -486,14 +486,18 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     )
 
     // 弹窗（设置面板 / Modal）：底色是 --dsw-alias-bg-layer-2，同样只命中元素本身。
-    expect(rule, '弹窗没掐掉宿主层色').toMatch(/\[role='dialog'\]\s*\{[^}]*background: transparent/)
-    expect(rule, '弹窗玻璃没画在伪元素上').toMatch(/\[role='dialog'\]::before\s*\{[^}]*backdrop-filter/)
-    expect(rule, '弹窗缺描边环').toMatch(/\[role='dialog'\]::after\s*\{[^}]*mask-composite: exclude/)
+    expect(rule, '弹窗没掐掉宿主层色').toMatch(/\[role='presentation'\] > \[role='dialog'\]\s*\{[^}]*background: transparent/)
+    expect(rule, '弹窗玻璃没画在伪元素上').toMatch(/\[role='presentation'\] > \[role='dialog'\]::before\s*\{[^}]*backdrop-filter/)
+    expect(rule, '弹窗缺描边环').toMatch(/\[role='presentation'\] > \[role='dialog'\]::after\s*\{[^}]*mask-composite: exclude/)
     // ⚠️ 弹窗自己**绝不能**带 backdrop-filter：设置页里有下拉菜单，
     // 弹窗一旦成为 backdrop root，菜单的 blur 就会被静默吃掉（发送卡踩过同一个坑）。
-    const dialogRule = clean.match(/body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{([^}]*)\}/)?.[1] ?? ''
+    const dialogRule = clean.match(/body\[data-dsh-aqua-glass\] \[role='presentation'\] > \[role='dialog'\]\s*\{([^}]*)\}/)?.[1] ?? ''
     expect(dialogRule, '弹窗规则没解析出来').not.toBe('')
     expect(dialogRule, '弹窗自己不许多带 backdrop-filter（会吃掉内部菜单的模糊）').not.toContain('backdrop-filter')
+    // ⚠️⚠️ 回归守卫：本规则**绝不能写 position**。灯箱与用量面板也带 role="dialog"
+    // 但自己是 position: fixed，一旦这里写 position（哪怕只是 relative），
+    // 就会以更高特指度覆盖掉它们 → 浮层掉回文档流、被挤到页面下方（用户报障过）。
+    expect(dialogRule, '弹窗规则里不许写 position —— 会覆盖掉灯箱/用量面板的 fixed，把它们挤出页面').not.toMatch(/(^|;)\s*position\s*:/)
     // 弹窗**内部**的控件跟着一起玻璃化：药丸（Pill）与外观选择卡走 layer-2，
     // 设置内容卡走 settings-card-fill。这两档层色全局禁区，只在弹窗作用域内放行。
     expect(dialogRule, '弹窗内的控件底色没接上玻璃').toContain('--dsw-alias-bg-layer-2: var(--aqua-surface)')
@@ -706,7 +710,7 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(clean).toMatch(/\[data-changed-files\]\s*\{[^}]*background:\s*var\(--aqua-well\)/)
     // 依旧一个字都不许碰 bg-layer-*（弹窗作用域那条例外见对应的用例）。
     expect(
-      clean.replace(/body\[data-dsh-aqua-glass\] \[role='dialog'\]\s*\{[^}]*\}/g, ''),
+      clean.replace(/body\[data-dsh-aqua-glass\] \[role='presentation'\] > \[role='dialog'\]\s*\{[^}]*\}/g, ''),
     ).not.toContain('--dsw-alias-bg-layer-1:')
   })
 

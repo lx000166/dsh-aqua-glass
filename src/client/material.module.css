@@ -877,18 +877,28 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] > div:has([data-changes-hover-pre
  *
  * 两者是**两套实现**：设置面板自带 `.overlay/.mask/.panel`（ui-settings-general
  * 的 SettingsRoot），其余弹窗走 ui-primitives 的 `Modal`（`.root/.mask/.dialog`）。
- * 但两边都带 `role="dialog"`，所以一个标准 ARIA 锚点就能全覆盖。
+ * 两边的外壳都带 `role="presentation"`、面板都带 `role="dialog"`，
+ * 所以锚点收紧成 **`[role='presentation'] > [role='dialog']`**。
+ *
+ * ⚠️⚠️ 为什么不能用裸的 `[role='dialog']`（踩过，用户报障「弹出层被挤到页面下面」）：
+ *   另外两类浮层也带这个 role ——
+ *      · 图片灯箱 `ImageLightbox` 的 `.backdrop`：`position: fixed; inset: 0`
+ *      · 用量面板 `stat-dialog` 的 `.panel`：`position: fixed`
+ *    它们**都有自己的 fixed 定位**，而本规则一旦写 `position: relative`，
+ *    就会以更高的特指度把宿主的 `position: fixed` 覆盖掉 → 浮层掉回文档流、
+ *    被挤到页面下方。加 `role="presentation"` 这一层既排除了它们，也更准确。
+ *
+ * ⚠️ 本规则**不要写 `position`**：需要的是"面板自成层叠上下文"，而两套外壳
+ *    自己都已经是（`.dialog` / `.panel` 都是 `position: relative; z-index: 1`）。
+ *    写上去只会覆盖掉别人的定位（见上）。
  *
  * 底色都来自**不透明的层色**（`.panel` 与 `.dialog` 都是
  * `background: var(--dsw-alias-bg-layer-2)`）—— 那是全局禁区，照旧只命中元素本身。
  *
  * ⚠️ 玻璃画在 `::before` 上、弹窗自己不碰 `backdrop-filter`：设置页里有下拉菜单，
  *    弹窗一旦成为 backdrop root，菜单的模糊就会被吃掉（发送卡踩过同一个坑）。
- *    `::before` 敢用 `z-index: -1` 的前提是弹窗自己成层叠上下文 ——
- *    两套外壳都是 `position: relative; z-index: 1`，成立。
  * ⚠️ 环用 `padding: 1px` + mask（与卡片同款配方），`corner-shape: inherit` 必写。 */
-body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog'] {
-  position: relative;
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='presentation'] > [role='dialog'] {
   border: none;
   corner-shape: var(--aqua-corner);
   /* 宿主的层色在此掐掉；填充交给下面的伪元素 */
@@ -917,7 +927,7 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog'] {
   --dsw-alias-settings-card-fill: var(--aqua-well);
 }
 
-body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog']::before {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='presentation'] > [role='dialog']::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -930,7 +940,7 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog']::before {
   pointer-events: none;
 }
 
-body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog']::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='presentation'] > [role='dialog']::after {
   content: '';
   position: absolute;
   inset: 0;
