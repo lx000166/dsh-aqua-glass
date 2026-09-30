@@ -112,8 +112,30 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
 
   it('承载 --dsw-alias-bg-base 的框架层被置为透明（否则流体整块被盖住）', () => {
     const rule = squash(MATERIAL_CSS)
-    expect(rule).toContain('_frame')
-    expect(rule).toMatch(/_frame'\][^{]*\{[^}]*background: transparent/)
+    expect(rule).toContain('[data-aqua-frame]')
+    expect(rule).toMatch(/\[data-aqua-frame\][^{]*\{[^}]*background: transparent/)
+  })
+
+  it('结构缝合点一律走盖章属性，不再用类名片段猜', () => {
+    // 同样先剥注释：散文里正当地记录了"以前用类名猜错过"。
+    const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    // 这三条过去都是错的：`[class*='_frame']` 误命中 7 个元素、
+    // `sidebarCol > div` 不是侧栏内容根、`[class*='logoRow']` 与品牌标无关。
+    for (const forbidden of ["[class*='_frame']", "sidebarCol']) > div", "[class*='logoRow']"]) {
+      expect(rule, `材质层里仍有类名猜测：${forbidden}`).not.toContain(forbidden)
+    }
+  })
+
+  it('收起态有独立几何，且发送栏融合态覆盖了数据行', () => {
+    const rule = squash(MATERIAL_CSS)
+    // 收起态必须显式归零内边距，否则轨道按钮被挤出窄列（顶栏图标"丢失"）。
+    expect(rule).toMatch(/\[data-sidebar-collapsed\][^{]*\{[^}]*padding: 0/)
+    // 融合态：发送卡与数据行在包裹层里转透明，只留一道发丝分界线。
+    expect(rule).toMatch(/\[data-aqua-inputbar\]:has\(\[data-aqua-stats\]\)/)
+    expect(rule).toMatch(/\[data-aqua-stats\][^{]*\{[^}]*background: transparent/)
+    // 会话进行中的发送区底座必须整块拿掉（特指度靠类名写两遍提权）。
+    expect(rule).toContain("[class*='composerSeat'][class*='composerSeat']")
+    expect(rule).toMatch(/composerSeat'\]\[class\*='composerSeat'\]\s*\{[^}]*background: none/)
   })
 })
 

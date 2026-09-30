@@ -17,6 +17,7 @@ import { readConfig, type GlassConfig } from './config.ts'
 import { mountDiagnostic } from './diagnostic.ts'
 import { createAttributeLease } from './dom-lease.ts'
 import { BODY_ATTRIBUTE } from './seam.ts'
+import { startSeamStamper } from './seam-stamper.ts'
 // 副作用导入：构建期由 lightningcss 编译成哈希类名映射，并把样式文本以
 // <style data-plugin="dsh-aqua-glass"> 注入；宿主卸载插件时会清掉它。
 import './material.module.css'
@@ -70,6 +71,7 @@ export function apply(ctx: ClientContext): void {
     let lease: ReturnType<typeof createAttributeLease> | null = null
     let unmountDiagnostic: (() => void) | null = null
     let unmountAmbient: (() => void) | null = null
+    let stopStamper: (() => void) | null = null
 
     const mount = (): void => {
       if (lease !== null) return
@@ -78,7 +80,10 @@ export function apply(ctx: ClientContext): void {
       writeTokens(config)
       lease = createAttributeLease(body, BODY_ATTRIBUTE)
       lease.acquire()
-      // 总开关属性先落，样式表立即生效；流体板随后挂上（WebGL 初始化是同步的）。
+      // 盖章必须在样式生效之前：材质层有一部分规则只认 data-aqua-* 锚点。
+      // 之后 MutationObserver 会跟随 React 重挂持续补章。
+      stopStamper = startSeamStamper()
+      // 流体板随后挂上（WebGL 初始化是同步的）。
       unmountAmbient = mountAmbient({ hue: config.hue, depth: config.depth })
       // 角标最后挂，所以「看到角标」等价于「apply 跑到底了」。
       // 它是辅助工具，自身出错绝不能影响主题 —— 冒烟脚本曾在这里抓到过一次。
@@ -102,6 +107,9 @@ export function apply(ctx: ClientContext): void {
       // 环境层先撤：它的 dispose 会停掉渲染循环并移除自己 prepend 的 DOM。
       unmountAmbient?.()
       unmountAmbient = null
+      // 盖章器最后停（已盖的章保留 —— 总开关属性一撤，它们就无害了）。
+      stopStamper?.()
+      stopStamper = null
       lease?.release()
       lease = null
       clearTokens()

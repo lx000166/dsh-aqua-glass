@@ -75,7 +75,32 @@
 
 ### 2.4 本插件当前用到的缝合点
 
-全部集中在 `src/client/seam.ts`。**改这里 → 同步改 `material.module.css` → `pnpm test` 必须通过。**
+缝合层分三级，**改任一级都要跑 `pnpm test`**：
+
+1. **探针**（`src/client/seam-stamper.ts` 的 `SEAMS` 表）：JS 里用类名片段 / 结构关系找元素。
+2. **盖章**：命中的元素被打上 `data-aqua-*` 属性。
+3. **选择器**（`src/client/seam.ts` → `material.module.css`）：样式表只认盖章属性 + 宿主自发的语义属性。
+
+| 盖章属性 | 探针选择器 | `first` | 0.2.0-rc.2 状态 |
+|---|---|---|---|
+| `data-aqua-frame` | `:has(> [class*="sidebarCol"])` | — | 正常（**只 1 个**；早前用 `[class*='_frame']` 猜会误命中 7 个） |
+| `data-aqua-sidebar-root` | `[class*="sidebarCol"] [class*="root"]` | ✅ | 正常（必须 `first`，否则会选中设置面板内部的 `root`，把面板行挤成竖排） |
+| `data-aqua-surface` | `button[class*="newSession"]` | — | 正常 |
+| `data-aqua-trajectory` | `[data-conversation-composer-overlay]` | — | 正常 |
+| `data-aqua-details` | `[class*="detailsCol"] [class*="root"]` | ✅ | **死章**：`detailsCol` 在 rc.2 已归零，右侧面板换成 `dsh-client-ui-sidebar-right`，待重定位 |
+| `data-aqua-inputbar` | `:has(> [data-composer-card])` | — | 正常 |
+| `data-aqua-add` | `[data-composer-card] [class*="add"]` | — | 正常 |
+| `data-aqua-stats` | `[data-slot="conversation.composer.dock"] [class*="root"]` | — | 正常（发送栏下方那块白底就是它，靠融合态解决） |
+| `data-aqua-wordmark` | `[class*="sidebarCol"] [class*="brand"]` | ✅ | 正常 |
+
+另有若干**宿主自发的语义属性**直接用在样式表里，无需盖章：
+`data-composer-card`、`data-phase`、`data-slot`、`data-ds-dark-theme`、`data-sidebar-collapsed`（在框架层上）。
+
+> **为什么不让 CSS 直接写 `:is([data-pane='sidebar'], [class*='sidebarCol'])`**
+> `data-pane` 在 0.2.0-rc.2 全 asar **0 次命中**，前半支是死支；类名片段是唯一可用的底座。
+> 但类名片段做不了「只取最靠上的一个匹配」——那件事只有 JS 能做，所以有盖章器。
+>
+> 上游 `seam-stamper.ts` 用 `data-dsh-*` 前缀；本插件用 `data-aqua-*`，避免两者同时安装时互相抢属性。
 
 ---
 

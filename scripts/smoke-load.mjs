@@ -33,9 +33,9 @@ const check = (condition, message) => {
 }
 
 /** 建一个隔离的浏览器环境，把产物跑起来并交出捕获到的注册项。 */
-function boot({ storage = {}, materialize = true } = {}) {
+function boot({ storage = {}, materialize = true, html } = {}) {
   const dom = new JSDOM(
-    '<!doctype html><html><head></head><body><div id="root"></div></body></html>',
+    html ?? '<!doctype html><html><head></head><body><div id="root"></div></body></html>',
     { url: 'http://127.0.0.1:19387/', pretendToBeVisual: true, runScripts: 'dangerously' },
   )
   const { window } = dom
@@ -176,6 +176,46 @@ tuned.exported.apply(makeContext().ctx)
 const tunedRoot = tuned.document.documentElement
 check(tunedRoot.style.getPropertyValue('--aqua-blur') === '4px', 'localStorage 的 blur 生效')
 check(tunedRoot.style.getPropertyValue('--aqua-radius') === '2px', 'localStorage 的 radius 生效')
+
+// ── 缝合盖章器：在合成的宿主 DOM 上验证探针 ───────────────────────────────
+//
+// 这是 L1 的核心机制，也是踩过坑的地方：结构缝合点必须落到**唯一**元素上。
+// 合成一份最小宿主结构 —— 关键是侧栏列下放**两个** `root`（侧栏内容根与
+// 设置面板内部各一个），验证 `first: true` 只盖最靠上的那个。
+const HOST_HTML = `<!doctype html><html><head></head><body><div id="root">
+  <div class="layout_frame">
+    <div class="layout_sidebarCol">
+      <div class="sidebar_root">
+        <button class="brandBtn">brand</button>
+        <button class="newSession">新会话</button>
+        <div class="settings_root">设置面板内部也有 root</div>
+      </div>
+    </div>
+    <div class="layout_centerCol">
+      <header class="chat_header">顶栏</header>
+      <div class="composer_root">
+        <div data-composer-card><button class="add">+</button></div>
+      </div>
+      <div data-slot="conversation.composer.dock"><div class="stats_root">数据行</div></div>
+      <div data-conversation-composer-overlay>轨迹</div>
+    </div>
+  </div>
+</div></body></html>`
+
+const host = boot({ html: HOST_HTML })
+host.exported.apply(makeContext().ctx)
+const hostDoc = host.document
+
+check(hostDoc.querySelectorAll('[data-aqua-frame]').length === 1, '框架层探针只盖 1 个元素（:has(> sidebarCol)）')
+check(hostDoc.querySelector('.layout_frame')?.hasAttribute('data-aqua-frame') === true, '框架层盖在侧栏列的直接父上')
+check(hostDoc.querySelectorAll('[data-aqua-sidebar-root]').length === 1, '侧栏内容根只盖 1 个元素（first:true 生效）')
+check(hostDoc.querySelector('.sidebar_root')?.hasAttribute('data-aqua-sidebar-root') === true, '侧栏内容根盖在最靠上的 root 上')
+check(hostDoc.querySelector('.settings_root')?.hasAttribute('data-aqua-sidebar-root') === false, '设置面板内部的 root 未被误盖')
+check(hostDoc.querySelector('.composer_root')?.hasAttribute('data-aqua-inputbar') === true, '发送栏根盖在发送卡的直接父上')
+check(hostDoc.querySelectorAll('[data-aqua-stats]').length === 1, '数据行探针命中 composer.dock 槽下的 root')
+check(hostDoc.querySelector('.newSession')?.hasAttribute('data-aqua-surface') === true, '新建会话按钮被盖上 surface')
+check(hostDoc.querySelector('.add')?.hasAttribute('data-aqua-add') === true, '发送栏「+」按钮被盖上 add')
+check(hostDoc.querySelector('[data-conversation-composer-overlay]')?.hasAttribute('data-aqua-trajectory') === true, '轨迹视图被盖上 trajectory')
 
 // ── 结果 ───────────────────────────────────────────────────────────────────
 closeAll()

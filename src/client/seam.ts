@@ -1,27 +1,29 @@
 /**
- * L1 缝合层 —— 本插件**唯一**与宿主 DOM 耦合的文件。
+ * L1 缝合层 —— 本插件与宿主 DOM 耦合的**唯一**出口。
  *
- * DSH 升级后选择器断了，只改这里，然后跑 `pnpm test`。
+ * DSH 升级后选择器断了，只改这里（以及 `seam-stamper.ts` 的探针表），
+ * 然后跑 `pnpm test`。
  *
- * ## 为什么用 `:is(data 属性, CSS Module 类名)` 两条腿
+ * ## 三层结构
  *
- * 实测 dsh-desktop 0.2.0-rc.2（app.asar，121,348,951 字节）：
- * 宿主确实会发出一批语义化 `data-*` 属性（见 docs/CONTRACT-AUDIT.md 的
- * 锚点表），但**不是所有结构都有**。最典型的是主列：
- * `data-pane` 在整个 asar 里出现 **0 次**，所以
- * `:is([data-pane='sidebar'], [class*='sidebarCol'])` 的前半支是死支，
- * 真正命中侧栏的是 CSS Module 哈希类名里的 `sidebarCol`
- * （`dsh-client-ui-layout/lib/client.js`，17 次）。
+ * 1. **探针**（`seam-stamper.ts`）：JS 里用类名片段 / 结构关系找元素。
+ *    只有 JS 能做「只取最靠上的一个匹配」这件事。
+ * 2. **盖章**：探针命中的元素被打上 `data-aqua-*` 属性。
+ * 3. **选择器**（本文件）：样式表只认盖章属性，外加宿主自己发出的语义
+ *    `data-*`（`data-composer-card` / `data-phase` / `data-slot` …）。
  *
- * 所以两条腿都写：`data-*` 是更好的锚点（语义稳定、可读），类名片段是
- * 兜底（不是契约，但当前是唯一可用的底座）。哪天真有了 `data-pane`，
- * 前半支自动接管，不需要改 CSS。
+ * 把脆弱性收敛到探针表的好处是：升级断了，改的是一张表，不是散落全篇的
+ * 选择器；而且探针的失败是**可观测的**（`seam.test.ts` 与诊断角标都读它）。
  *
- * 参照实现：`reference/repos/deep-whale/maid-atelier/src/client/index.ts`
- * 顶部常量表与本文件的写法同源。
+ * ## 为什么不直接 `:is([data-pane='sidebar'], [class*='sidebarCol'])`
+ *
+ * 实测 dsh-desktop 0.2.0-rc.2：`data-pane` 在整个 asar 里出现 **0 次**，
+ * 前半支是死支。真正命中侧栏的只有 CSS Module 类名片段 `sidebarCol`。
+ * 宿主哪天补上语义属性，只需改探针表一处。
  *
  * @module seam
  */
+import { STAMP } from './seam-stamper.ts'
 
 /** 挂在 `document.body` 上的总开关标记 —— 所有 CSS 规则都以它为前缀。 */
 export const BODY_ATTRIBUTE = 'data-dsh-aqua-glass'
@@ -35,26 +37,36 @@ export const SIDEBAR = ":is([data-pane='sidebar'], [class*='sidebarCol'])"
 export const CONVERSATION = ":is([data-pane='conversation'], [class*='centerCol'])"
 
 /**
- * 侧栏真正承载背景的那一层。宿主把可滚动内容放在列的直接子 `div` 上，
- * 玻璃要打在它上面，而不是列表里 —— 打在列本身会被子级不透明背景盖住。
+ * 侧栏内容根（列下最靠上的那个 `root`）。
+ *
+ * ⚠️ 它**必须唯一**：设置面板内部也有一个 `root`，宽泛的 `[class*='root']`
+ * 会连它一起选中，把设置面板的行挤成竖排文字。所以靠运行时盖章的
+ * `first: true` 语义，而不是让 CSS 自己猜。
  */
-export const SIDEBAR_SURFACE = `${SIDEBAR} > div`
+export const SIDEBAR_ROOT = `[${STAMP.SIDEBAR_ROOT}]`
 
 /**
- * 应用框架层：宿主在这里画 `--dsw-alias-bg-base` 底色。它若不透明，流体
- * 背景板被整块挡住，玻璃也就跟着没了 —— 所以必须置为透明。
+ * 应用框架层 = **侧栏列的直接父**。宿主在这里画 `--dsw-alias-bg-base` 底色，
+ * 它若不透明，流体背景板就被整块挡住。
  *
- * 0.2.0-rc.2 实测：`dsh-client-ui-layout` 产物里**只有一个**类名含 `frame`
- * （`.BynINW_frame`，声明 `background:var(--dsw-alias-bg-base)`）。哈希前缀
- * 会随重建变化，但 lightningcss 的命名格式是 `[hash]_[local]`，`_frame`
- * 后缀是稳的。
- *
- * ⚠️ 这是本项目**唯一**没有 `data-*` 兜底的缝合点。宿主哪天给框架层补了语义
- * 属性，应立刻改用它。已登记在 docs/CONTRACT-AUDIT.md。
+ * 探针是 `:has(> [class*="sidebarCol"])`（只在 JS 里用 —— CSS 里用 `:has()`
+ * 代价高）。之前我拿 `[class*='_frame']` 猜，实测误命中 **7 个**元素。
  */
-export const FRAME = "[class*='_frame']"
+export const FRAME = `[${STAMP.FRAME}]`
 
-// ── 表面（S0 三个验收面） ─────────────────────────────────────────────────
+/** 发送栏根：发送卡片的直接父。卡片与其下方数据行靠它融合成一块玻璃。 */
+export const INPUTBAR = `[${STAMP.INPUTBAR}]`
+
+/** 发送栏下方的数据/统计行（`conversation.composer.dock` 槽）。 */
+export const STATS = `[${STAMP.STATS}]`
+
+/** 发送栏左侧的「+」按钮。 */
+export const ADD = `[${STAMP.ADD}]`
+
+/** 轨迹视图。 */
+export const TRAJECTORY = `[${STAMP.TRAJECTORY}]`
+
+// ── 表面 ──────────────────────────────────────────────────────────────────
 
 /** 会话区顶栏。 */
 export const TOPBAR = `${CONVERSATION} header[class*='header']`
@@ -65,16 +77,26 @@ export const COMPOSER_CARD = '[data-composer-card]'
 /** 新建会话按钮。 */
 export const NEW_SESSION = `button[class*='newSession']`
 
-/** 侧栏品牌行（铭牌区）。 */
-export const BRAND_ROW = `[class*='logoRow']`
+/** 侧栏品牌标（铭牌区）。 */
+export const WORDMARK = `[${STAMP.WORDMARK}]`
 
 /** 侧栏底部的设置入口。 */
 export const SETTINGS_TRIGGER = "[data-slot='sidebar.settings'] > :is(button, [role='button'])"
+
+/**
+ * 发送区底座。会话进行中它会画一块不透明底板 + 一条 36px 淡出带，把流体
+ * 整块挡住 —— 就是「发送栏下面那块白色」。宿主基础规则特指度是 (0,3,0)，
+ * 所以覆盖时把类名选择器**写两遍**提权（上游同款手法）。
+ */
+export const COMPOSER_SEAT = "[class*='composerSeat']"
 
 // ── 状态 ──────────────────────────────────────────────────────────────────
 
 /** 深色态。宿主把它放在 `<body>` 上。 */
 export const DARK = '[data-ds-dark-theme]'
+
+/** 侧栏收起态。宿主把它放在框架层上。 */
+export const SIDEBAR_COLLAPSED = '[data-sidebar-collapsed]'
 
 /** 空白会话（英雄区）。 */
 export const PHASE_HERO = "[data-phase='hero']"
@@ -89,14 +111,18 @@ export const PHASE_ACTIVE = "[data-phase='active']"
 export const SEAM = {
   SIDEBAR,
   CONVERSATION,
-  SIDEBAR_SURFACE,
+  SIDEBAR_ROOT,
   FRAME,
+  INPUTBAR,
+  STATS,
   TOPBAR,
   COMPOSER_CARD,
+  COMPOSER_SEAT,
   NEW_SESSION,
-  BRAND_ROW,
+  WORDMARK,
   SETTINGS_TRIGGER,
   DARK,
+  SIDEBAR_COLLAPSED,
   PHASE_HERO,
   PHASE_ACTIVE,
 } as const
