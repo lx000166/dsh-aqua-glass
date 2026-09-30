@@ -472,13 +472,19 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-conversation-scroll] {
  * 滚过的文字，必须补模糊。（这里安全：sticky 元素没有 fixed 后代，
  * 不会重演侧栏开关那次「backdrop-filter 创建包含块」的问题。）
  *
- * ⚠️ 还有一层：内层 `.banner` 自己也有一层玻璃（`--dsl-code-block-banner-background-color`
- * → 我们已把它指向 `--aqua-well`）。40% 叠 40% = 64%，**反而更像实心**。
- * 那个局部变量声明在 `.block` 上、由 `.banner` **继承**消费，所以在包裹层上
- * 改写它就能让内层归零 —— 一层面，正好与代码块 body 同档。 */
+ * ⚠️ 还有一层：内层自己也带玻璃 —— 工具栏分支下 header 区叠了**三层**半透明：
+ *      `.block`(40%) + `.bannerWrap`(40%) + `CodeToolbar.header`(40%) ≈ 78%，
+ *   而正文只有 `.block` + `pre` ≈ 2 层 ≈ 64% —— 于是 header 明显比 body 更像实心
+ *   （"看起来没透"的真身其实是**多叠了一层**，不是它没改）。
+ *
+ *   所以这里**只给模糊、不给填充**：`background-color: transparent`。
+ *   底座本来就只需要"糊住滚过的代码"，那正是 `backdrop-filter` 的职责，
+ *   不需要再压一层底色。去掉这层后两边都是两层，色调一致。
+ *
+ *   （`backdrop-filter` 在没有背景色的元素上照样生效 —— 它过滤的是背后的东西。） */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [class*='bannerWrap'],
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] :has(> [data-code-block-banner]) {
-  background-color: var(--aqua-well);
+  background-color: transparent;
   backdrop-filter: var(--aqua-filter);
   --dsl-code-block-banner-background-color: transparent;
 }

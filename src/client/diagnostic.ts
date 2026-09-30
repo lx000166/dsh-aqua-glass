@@ -138,6 +138,26 @@ export function mountDiagnostic(version: string): () => void {
     const fill = readTitlebarFill()
     lines.push(`标题栏色 ${fill ?? '(未覆盖)'}`)
 
+    // 代码块 header：这块反复改了几轮，直接把「正文 / 底座 / header」三者的
+    // 实际计算值一起报出来 —— 半透明叠了几层是肉眼分不出来的，数值能。
+    // `md-code-block` 是宿主写在 `.block` 旁边的**稳定字面类名**（非哈希）。
+    try {
+      const background = (selector: string): string => {
+        const element = document.querySelector(selector)
+        return element === null ? '—' : getComputedStyle(element).backgroundColor
+      }
+      const body = background('.md-code-block pre')
+      const wrap = background("[class*='bannerWrap']")
+      const banner = background("[class*='bannerWrap'] > *, [data-code-block-banner]")
+      lines.push(
+        document.querySelector('.md-code-block') === null
+          ? '代码块 n/a（当前无代码块）'
+          : `代码块 body ${body} / 底座 ${wrap} / header ${banner}`,
+      )
+    } catch {
+      lines.push('代码块 n/a')
+    }
+
     // 视口中心点上的元素：如果它带着不透明底色，流体就是被它盖住的。
     if (typeof document.elementFromPoint === 'function') {
       try {

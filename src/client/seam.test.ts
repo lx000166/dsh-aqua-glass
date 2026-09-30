@@ -350,7 +350,11 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(clean).toContain(':has(> [data-code-block-banner])')
     const bannerRule = clean.match(/:has\(> \[data-code-block-banner\]\)\s*\{([^}]*)\}/)?.[1] ?? ''
     expect(bannerRule, 'banner 规则没解析出来').not.toBe('')
-    expect(bannerRule).toContain('background-color: var(--aqua-well)')
+    // ⚠️ 底座**只给模糊、不给填充**：工具栏分支下 header 区本就有三层半透明
+    // （.block + .bannerWrap + CodeToolbar.header ≈ 78%），而正文只有两层（≈64%）——
+    // 底座再压一层底色，header 就会明显比 body 更像实心。这正是"看不出来改过了"的真身。
+    expect(bannerRule).toContain('background-color: transparent')
+    expect(bannerRule).not.toContain('background-color: var(--aqua-well)')
     // sticky，会盖在滚动中的代码上，只给半透明会透出底下的字。
     expect(bannerRule).toContain('backdrop-filter')
     // 内层 .banner 的第二层玻璃要撤掉，否则 40% + 40% 叠成 64%，反而更像实心。
