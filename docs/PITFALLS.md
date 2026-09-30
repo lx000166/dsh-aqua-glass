@@ -84,6 +84,41 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] … { }
 **两条规矩**：① 锚点优先用宿主发的语义 key（`data-*-key`）或标准 role，别用哈希类名；
 ② 模糊要画在**有填充的那个元素**上 —— 填充留在卡片、模糊挪到伪元素，等于没糊（发送卡那次已证明）。
 
+### 2.17 类名片段 `[class*='xxx']` 会误伤"同类词"元素 —— 顶栏吃掉了提问弹窗的标题
+
+**症状**（用户连着报两轮才定死）：
+
+- 「提问弹窗的**标题部分**背景还是实心的」
+- 「展开时标题的提问文字**贴到底边**了」
+
+**根因**：顶栏当时用 `CONVERSATION header[class*='header']` 定位。**CSS Module 的哈希类名里保留着语义词** ——
+提问弹窗的标题恰好就是 `<header class="…_header_…">`，又长在会话栏内 → 被当成会话顶栏，
+套上了我们顶栏那一整套：`--aqua-glass`（深色 `rgb(34 38 47)/0.38`）+ `blur(12px) saturate(1.4)`
++ `position: relative` + 描边环。弹窗顶部于是多出一条 **85px** 的深色带（正好等于它 `.header` 的高度），
+标题文字被挤到那条带的下边缘 —— **两个症状同一个原因**。
+
+**怎么定死的**：宿主 CSS 里 `.header` 压根没有底色（逐行读过），DOM 也查不了
+（Cordis Inspect 只给 Service / Slot / Token，没有 DOM 查询），最后靠**临时探针**
+（`probe-question.ts`，把 computed 值打在屏幕上）才看到真身：
+
+```
+header.matLq  bg=color(srgb 0.133333 0.14902 0.184314 / 0.38)  bf=blur(12px) saturate(1.4)  pos=relative  h=85
+```
+
+—— 那正是我们的 `--aqua-glass` 与 `--aqua-filter`。
+
+**修法与规矩**：
+
+1. 首选**语义锚点**：`header[data-window-drag]:has(> [data-conversation-header-leading])`
+   （前者是宿主给窗口拖拽区打的标记，后者由 `ConversationHeader.tsx` 自己发出，全宿主只此一处）。
+2. 片段锚点只能当**回退支**，且必须显式排除已知的同类元素：`:not([data-question-key] *)`
+   —— 语义支万一失效也有回退支兜住（顶栏不会掉玻璃），而弹窗绝不会再中招。
+3. **新增定位一律先找语义属性 / 标准 role，找不到再用片段**；用片段前先问一句
+   "这个词还会出现在哪些组件里"。断言见 `seam.test.ts` 的「顶栏用语义锚点定位」一条。
+4. 这条也适用于 `[class*='footerActions']` 之类的片段：宿主多个组件重名（提问弹窗的 footer
+   就叫 `.footerActions`），目前那条只置 `background: transparent` 所以无害，
+   **但以后往它上面加声明前要先查重名**。
+
 ---
 
 ## 3. 禁区（不许全局覆盖的 token）
