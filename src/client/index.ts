@@ -13,11 +13,16 @@
  * @module client
  */
 import { readConfig, type GlassConfig } from './config.ts'
+import { mountDiagnostic } from './diagnostic.ts'
 import { createAttributeLease } from './dom-lease.ts'
 import { BODY_ATTRIBUTE } from './seam.ts'
 // 副作用导入：构建期由 lightningcss 编译成哈希类名映射，并把样式文本以
 // <style data-plugin="dsh-aqua-glass"> 注入；宿主卸载插件时会清掉它。
 import './material.module.css'
+
+/** 包版本，由 tsdown 的 define 注入；诊断角标用它确认页面跑的是哪一版产物。 */
+declare const __AQUA_VERSION__: string
+const VERSION = typeof __AQUA_VERSION__ === 'string' ? __AQUA_VERSION__ : 'dev'
 
 /** cordis 客户端上下文里本插件真正用到的那一小部分。 */
 export interface ClientContext {
@@ -61,6 +66,7 @@ export function apply(ctx: ClientContext): void {
     if (!config.enabled) return () => {}
 
     let lease: ReturnType<typeof createAttributeLease> | null = null
+    let unmountDiagnostic: (() => void) | null = null
 
     const mount = (): void => {
       if (lease !== null) return
@@ -69,6 +75,8 @@ export function apply(ctx: ClientContext): void {
       writeTokens(config)
       lease = createAttributeLease(body, BODY_ATTRIBUTE)
       lease.acquire()
+      // 角标在总开关属性之后挂，所以「看到角标」等价于「apply 跑到底了」。
+      if (config.debug) unmountDiagnostic = mountDiagnostic(VERSION)
     }
 
     mount()
@@ -77,6 +85,8 @@ export function apply(ctx: ClientContext): void {
 
     return () => {
       document.removeEventListener('DOMContentLoaded', onReady)
+      unmountDiagnostic?.()
+      unmountDiagnostic = null
       lease?.release()
       lease = null
       clearTokens()

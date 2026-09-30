@@ -9,6 +9,16 @@
  *
  * 可调参数由 config.ts 在运行时写到 `document.documentElement` 上
  * （`--aqua-blur` / `--aqua-frost` / `--aqua-radius`），这里只给兜底值。
+ *
+ * ## 玻璃可见性的前提
+ *
+ * `backdrop-filter` 是把**背后已有的东西**糊掉。如果背后是纯色（宿主默认的
+ * `--dsw-alias-bg-base`），玻璃和实心面板在视觉上完全一样——这是 S0 第一版
+ * 看起来「什么都没变」的直接原因。所以这里必须先铺一层背景（顶替 L3 流体
+ * 背景的位置），玻璃才有东西可糊。
+ *
+ * 浅色态的默认值曾经写成「白色填充 + 白色描边」，在白底上三重不可见；现在
+ * 改为带色相的玻璃 + 明确的中性描边。
  */
 
 /* ── 变量 ─────────────────────────────────────────────────────────────── */
@@ -17,22 +27,36 @@ body[data-dsh-aqua-glass] {
   --aqua-blur: 18px;
   --aqua-frost: 0.55;
   --aqua-radius: 14px;
-  --aqua-line: rgb(255 255 255 / 0.5);
-  --aqua-glass: rgb(255 255 255 / var(--aqua-frost));
-  --aqua-glass-strong: rgb(255 255 255 / 0.72);
-  --aqua-shadow: 0 8px 32px rgb(15 23 42 / 0.1);
+  /* 浅色：带一点冷色相的玻璃，白底上能看出来 */
+  --aqua-line: rgb(64 96 150 / 0.28);
+  --aqua-glass: rgb(214 231 255 / var(--aqua-frost));
+  --aqua-glass-strong: rgb(226 239 255 / 0.78);
+  --aqua-shadow: 0 8px 32px rgb(24 48 92 / 0.16);
   --aqua-filter: blur(var(--aqua-blur)) saturate(1.6);
+  --aqua-backdrop:
+    radial-gradient(120% 80% at 8% 4%, rgb(178 212 255 / 0.85) 0%, rgb(178 212 255 / 0) 58%),
+    radial-gradient(110% 75% at 94% 96%, rgb(206 196 255 / 0.8) 0%, rgb(206 196 255 / 0) 62%),
+    linear-gradient(155deg, #eef4fd 0%, #e6eefb 48%, #eceaf9 100%);
 }
 
 /* 深色态：宿主把标记放在 body 上 */
 body[data-dsh-aqua-glass][data-ds-dark-theme] {
-  --aqua-line: rgb(255 255 255 / 0.09);
-  --aqua-glass: rgb(17 21 28 / var(--aqua-frost));
-  --aqua-glass-strong: rgb(17 21 28 / 0.72);
-  --aqua-shadow: 0 8px 32px rgb(0 0 0 / 0.45);
+  --aqua-line: rgb(150 182 235 / 0.22);
+  --aqua-glass: rgb(22 30 46 / var(--aqua-frost));
+  --aqua-glass-strong: rgb(28 38 58 / 0.82);
+  --aqua-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+  --aqua-backdrop:
+    radial-gradient(120% 80% at 8% 4%, rgb(38 64 116 / 0.9) 0%, rgb(38 64 116 / 0) 58%),
+    radial-gradient(110% 75% at 94% 96%, rgb(58 44 96 / 0.85) 0%, rgb(58 44 96 / 0) 62%),
+    linear-gradient(155deg, #0d1420 0%, #111a2b 48%, #161428 100%);
 }
 
-/* ── 让底层透出来 ─────────────────────────────────────────────────────── */
+/* ── 背景（顶替尚未移植的 L3 流体背景层）───────────────────────────────── */
+
+body[data-dsh-aqua-glass] {
+  background: var(--aqua-backdrop) !important;
+  background-attachment: fixed !important;
+}
 
 /* 不透明祖先会把玻璃后面的东西全挡住，这两层必须先透明。 */
 body[data-dsh-aqua-glass] [id='root'],

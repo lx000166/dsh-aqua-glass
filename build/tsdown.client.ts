@@ -18,7 +18,7 @@
  * 3. 平台模块表换成本仓库按实测反推的清单（见 web-platform.ts）。
  */
 import { readFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, relative, resolve as resolvePath, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { UserConfig } from 'tsdown'
@@ -26,6 +26,16 @@ import { transform } from 'lightningcss'
 import { PLATFORM_MODULES } from './web-platform.ts'
 
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url))
+
+/** 包版本，注入成 `__AQUA_VERSION__` 供诊断角标显示。 */
+function readPackageVersion(): string {
+  try {
+    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version?: unknown }
+    return typeof manifest.version === 'string' ? manifest.version : '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+}
 
 /**
  * 虚拟 id 前缀：把 module CSS 挡在 tsdown 自己的 css 管线之外。
@@ -85,6 +95,7 @@ function clientHalf({ id, clientEntry = 'src/client/index.ts' }: ClientBundleOpt
     clean: false,
     external: [...PLATFORM_MODULES],
     define: {
+      __AQUA_VERSION__: JSON.stringify(readPackageVersion()),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
       'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV ?? 'production'),
       'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'production' }),

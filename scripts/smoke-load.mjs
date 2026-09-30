@@ -34,13 +34,15 @@ const check = (condition, message) => {
 function makeDom() {
   const attributes = new Map()
   const styles = new Map()
-  const appended = []
+  const injectedStyles = [] // document.head 收到的 <style>
+  const bodyChildren = [] // document.body 收到的子节点
 
-  const head = { appendChild: (node) => appended.push(node) }
+  const head = { appendChild: (node) => injectedStyles.push(node) }
   const body = {
     getAttribute: (name) => attributes.get(name) ?? null,
     setAttribute: (name, value) => void attributes.set(name, value),
     removeAttribute: (name) => void attributes.delete(name),
+    appendChild: (node) => bodyChildren.push(node),
   }
   const documentElement = {
     style: {
@@ -52,14 +54,23 @@ function makeDom() {
   return {
     attributes,
     styles,
-    appended,
+    injectedStyles,
+    bodyChildren,
     document: {
       body,
       documentElement,
       head,
-      // bundle 里的 CSS 注入守卫会问一次「这个 style 标签在不在」
+      // bundle 里的 CSS 注入守卫会问一次「这个 style 标签在不在」；
+      // 之后的诊断探针会按缝合点选择器数元素，这里统一回空列表。
       querySelector: () => null,
-      createElement: () => ({ dataset: {}, textContent: '' }),
+      querySelectorAll: () => [],
+      createElement: () => ({
+        dataset: {},
+        style: {},
+        textContent: '',
+        setAttribute: () => {},
+        remove: () => {},
+      }),
       addEventListener: () => {},
       removeEventListener: () => {},
     },
@@ -95,6 +106,8 @@ const sandbox = {
   cancelAnimationFrame: (id) => clearTimeout(id),
   setTimeout,
   clearTimeout,
+  setInterval,
+  clearInterval,
   console,
 }
 sandbox.globalThis = sandbox
@@ -107,7 +120,7 @@ check(loaded?.id === EXPECTED_ID, `注册 id 等于包名（${loaded?.id} === ${
 check(typeof loaded?.factory === 'function', 'factory 是一个函数')
 
 // ── 2. factory 体无副作用 ──────────────────────────────────────────────────
-check(dom.appended.length === 0, 'factory 执行前没有注入任何 <style>（副作用应当在 apply 里）')
+check(dom.injectedStyles.length === 0, 'factory 执行前没有注入任何 <style>（副作用应当在 apply 里）')
 check(dom.attributes.size === 0, 'factory 执行前没有写 body 属性')
 
 // ── 3. 零模块依赖：require 一调用就抛 ──────────────────────────────────────
@@ -123,8 +136,8 @@ try {
 }
 
 // ── 4. 样式已注入且作用域正确 ──────────────────────────────────────────────
-check(dom.appended.length === 1, `注入了 1 个 <style>（实际 ${dom.appended.length}）`)
-const injected = dom.appended[0]
+check(dom.injectedStyles.length === 1, `注入了 1 个 <style>（实际 ${dom.injectedStyles.length}）`)
+const injected = dom.injectedStyles[0]
 check(injected?.dataset?.plugin === EXPECTED_ID, '<style> 带 data-plugin 标记（宿主卸载时会据此清理）')
 check(String(injected?.textContent).includes('backdrop-filter'), '注入的样式里含 backdrop-filter')
 check(String(injected?.textContent).includes(`body[${'data-dsh-aqua-glass'}]`), '样式以 body 总开关属性为作用域')
@@ -150,6 +163,8 @@ if (typeof exported?.apply === 'function') {
   check(dom.styles.get('--aqua-blur') === '18px', 'apply 后写入了 --aqua-blur 变量')
   check(dom.styles.get('--aqua-frost') === '0.55', 'apply 后写入了 --aqua-frost 变量')
   check(disposers.length === 1, 'apply 通过 ctx.effect 注册了 1 个 disposer')
+  check(dom.bodyChildren.length === 1, 'apply 挂上了诊断角标（临时，定稿前删）')
+  check(String(dom.bodyChildren[0]?.textContent).includes('Aqua'), '角标文案里带插件名')
 } else {
   failures.push('入口没有导出 apply')
 }
@@ -158,7 +173,7 @@ if (typeof exported?.apply === 'function') {
 for (const dispose of disposers) dispose()
 check(dom.attributes.has('data-dsh-aqua-glass') === false, '卸载后 body 属性已移除')
 check(dom.styles.size === 0, '卸载后 CSS 变量已清空')
-check(dom.appended.length === 1, '卸载不重复注入 <style>')
+check(dom.injectedStyles.length === 1, '卸载不重复注入 <style>')
 
 // ── 7. 总开关关闭时不产生任何副作用 ────────────────────────────────────────
 const dom2 = makeDom()

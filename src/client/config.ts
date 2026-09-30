@@ -25,6 +25,11 @@ export interface GlassConfig {
   frost: number
   /** 圆角（px）。 */
   radius: number
+  /**
+   * 诊断角标（临时）。右下角实时显示各缝合点命中的元素数。
+   * 视觉定稿前删掉 diagnostic.ts 与本开关。
+   */
+  debug: boolean
 }
 
 export const DEFAULT_CONFIG: GlassConfig = {
@@ -32,6 +37,7 @@ export const DEFAULT_CONFIG: GlassConfig = {
   blur: 18,
   frost: 0.55,
   radius: 14,
+  debug: true,
 }
 
 function clamp(value: number, min: number, max: number, fallback: number): number {
@@ -61,6 +67,7 @@ export function readConfig(): GlassConfig {
       blur: clamp(Number(candidate.blur), 0, 60, DEFAULT_CONFIG.blur),
       frost: clamp(Number(candidate.frost), 0, 1, DEFAULT_CONFIG.frost),
       radius: clamp(Number(candidate.radius), 0, 40, DEFAULT_CONFIG.radius),
+      debug: typeof candidate.debug === 'boolean' ? candidate.debug : DEFAULT_CONFIG.debug,
     }
   } catch {
     return { ...DEFAULT_CONFIG }
