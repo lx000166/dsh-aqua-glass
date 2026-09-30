@@ -2,7 +2,19 @@
 
 为 **DeepSeek Harness Web GUI** 提供磨砂玻璃材质、流体背景与浅色/深色双态适配的主题插件。
 
+> **接手/换机先读 [docs/HANDOVER.md](docs/HANDOVER.md)**（环境、命令、接手步骤、交付纪律）。
 > 施工方案见 [PLAN.md](PLAN.md)；宿主契约与升级审计见 [docs/CONTRACT-AUDIT.md](docs/CONTRACT-AUDIT.md)。
+
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [docs/HANDOVER.md](docs/HANDOVER.md) | 交接入口：环境路径、命令链、**交付纪律**、换电脑重建步骤 |
+| [docs/STATUS.md](docs/STATUS.md) | **现在改了什么**：表面清单、`--aqua-*` 旋钮表、覆盖的宿主 token、文件地图、提交历史 |
+| [docs/PITFALLS.md](docs/PITFALLS.md) | ⚠️ **改代码前必读**：踩过的坑、禁区 token、**被否的方案（不要再试）**、锚点优先级 |
+| [docs/DIFF-VS-REFERENCE.md](docs/DIFF-VS-REFERENCE.md) | 与参考皮肤 `DSH-Transparent-UI-Plugin` 的差异、**还没加的点**与性价比排序 |
+| [PLAN.md](PLAN.md) | 早期施工方案（历史） |
+| [docs/archive/PORTING-0.2.0-rc.1.md](docs/archive/PORTING-0.2.0-rc.1.md) | ⚠️ 已过期且有害（版本/peer/槽位全过时），只当历史看 |
 
 ## 安装
 
@@ -44,11 +56,14 @@ localStorage.setItem('dsh-aqua-glass', JSON.stringify({
 
 ## 这一版的范围
 
+> ⚠️ 下表**曾经的版本已过期**（把"流体背景、小鱼/气泡"列在待移植，其实早已完成）。
+> **以 [docs/STATUS.md](docs/STATUS.md) 与 [docs/DIFF-VS-REFERENCE.md](docs/DIFF-VS-REFERENCE.md) 为准**，这里只留一句话概览：
+
 | 状态 | 内容 |
 |---|---|
-| ✅ 已实现 | 玻璃材质打在**顶栏 / 侧栏 / 发送栏 / 新建会话按钮**四个表面；浅深两态；总开关与四项可调参数 |
-| ⏳ 待移植 | 流体背景、鼠标辉光、悬停下压、小鱼/气泡、网状交互、图片壁纸、HARNESS 铭牌替换、云母/兼容双模式 |
-| ❌ 不做 | 视频壁纸、粒子鲸鱼 |
+| ✅ 已实现 | 侧栏 / 顶栏 / 发送栏三张悬浮玻璃卡（含 L3 流体背景、环境动画）；内容表面（代码块 / 工具卡 / 悬停卡 / 菜单 / 弹窗 / 滚动条）逐块玻璃化；浅深两态；总开关与四项运行时可调参数（`localStorage`） |
+| ⏳ 未做 | 兼容模式（只换材质不动布局）、设置界面面板、边缘淡出、鼠标辉光、悬停下压、网状交互、图片/视频壁纸、粒子鲸鱼、铭牌徽章 —— 逐项成本见 [docs/DIFF-VS-REFERENCE.md §4](docs/DIFF-VS-REFERENCE.md) |
+| ❌ 不做 | 视频壁纸、粒子鲸鱼（除非用户重新提） |
 
 ## 架构约束（改代码前先读）
 
