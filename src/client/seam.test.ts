@@ -167,14 +167,15 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule).toMatch(/--dsw-specific-sidebar-fill:\s*transparent/)
   })
 
-  it('三处卡片用渐变描边而不是实线', () => {
+  it('三处卡片用 mask 裁出的渐变描边，不用两层背景', () => {
     const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
-    // 渐变描边的实现：1px 透明边框 + padding-box/border-box 两层背景。
     expect(rule, '缺 --aqua-edge 渐变定义').toContain('--aqua-edge:')
-    const layered = rule.match(/padding-box/g) ?? []
-    expect(layered.length, '侧栏/顶栏/发送栏三处都要用两层背景做渐变描边').toBeGreaterThanOrEqual(3)
-    // 侧栏列的实线描边必须已经搬进 ::before 的渐变层。
-    expect(rule).toMatch(/::before\s*\{[^}]*border:\s*1px solid transparent/)
+    // ⚠️ 这条是踩过坑的：`border-box`/`padding-box` 两层背景里，border-box 层铺的是
+    // 整个元素盒子而不是边框那一圈，半透明玻璃盖不住它，渐变会从整块卡片透出来。
+    // 所以描边必须用 mask 裁成 1px 环。
+    expect(rule, '不该再用 padding-box/border-box 两层背景做描边').not.toContain('border-box')
+    expect(rule, '不该再用 padding-box/border-box 两层背景做描边').not.toContain('padding-box')
+    expect(rule.match(/mask-composite: exclude/g)?.length ?? 0, '侧栏/顶栏/发送栏三处都要 mask 描边').toBeGreaterThanOrEqual(3)
   })
 })
 

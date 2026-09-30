@@ -163,13 +163,33 @@ body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::bef
   inset: 0;
   /* 落在列内容之下。 */
   z-index: -1;
-  /* 1px 透明边框 + 两层背景 = 跟随圆角的渐变描边，不需要 mask。 */
-  border: 1px solid transparent;
   border-radius: inherit;
-  background:
-    linear-gradient(var(--aqua-glass), var(--aqua-glass)) padding-box,
-    var(--aqua-edge) border-box;
+  background: var(--aqua-glass);
   backdrop-filter: var(--aqua-filter);
+  pointer-events: none;
+}
+
+/* 渐变描边：用 mask 把渐变裁成 1px 的环。
+ *
+ * ⚠️ 不要用「1px 透明边框 + border-box/padding-box 两层背景」那个写法。
+ * `border-box` 层铺的是**整个元素盒子**而不是只有边框那一圈，上层玻璃只有
+ * 30% 不透明、盖不住它，渐变会从整块卡片里透出来（实测：顶部多出一条横贯
+ * 的渐变带）。那个写法要求上层不透明 —— 与半透明玻璃天生不兼容。
+ *
+ * mask 在这里是安全的：伪元素是叶子节点，没有后代，不会像 backdrop-filter
+ * 那样影响别的 fixed 定位元素。 */
+body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--aqua-edge);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
   pointer-events: none;
 }
 
@@ -214,13 +234,26 @@ body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) 
   position: relative;
   margin: 12px 16px 0;
   padding: 10px 16px 8px;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 20px;
-  background:
-    linear-gradient(var(--aqua-glass), var(--aqua-glass)) padding-box,
-    var(--aqua-edge) border-box;
+  background: var(--aqua-glass);
   box-shadow: var(--aqua-inset), var(--aqua-shadow);
   backdrop-filter: var(--aqua-filter);
+}
+
+/* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释） */
+body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--aqua-edge);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 body[data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
@@ -232,17 +265,30 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [c
 body[data-dsh-aqua-glass] [data-composer-card] {
   position: relative;
   z-index: 8;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 24px;
-  background:
-    linear-gradient(var(--aqua-glass), var(--aqua-glass)) padding-box,
-    var(--aqua-edge) border-box;
+  background: var(--aqua-glass);
   box-shadow: var(--aqua-inset), 0 10px 36px rgb(19 45 83 / 0.16);
   backdrop-filter: var(--aqua-filter);
 }
 
 body[data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
+}
+
+/* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释） */
+body[data-dsh-aqua-glass] [data-composer-card]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--aqua-edge);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 /* 数据行：**保持原生布局**（不改位置、不改尺寸、不与发送卡融合），
