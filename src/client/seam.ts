@@ -111,7 +111,9 @@ export const CHANGES_PREVIEW = '[data-changes-hover-preview]'
  * 面板自己发的 key（每次提问都带），卡片是它的**直接子元素**。
  * 宿主给这张卡的底色是 `--dsw-specific-input-major`（不透明输入面底色），
  * 本主题把它改成半透明后必须补模糊，见 material.module.css 里那一段。
- * 目前只有临时探针（`probe-question.ts`）在读它。
+ * 这个锚点还兼职一件重要的事：**顶栏的回退支靠它做排除**
+ * （`header[class*='header']:not([data-question-key] *)`）——
+ * 顶栏原先的类名片段锚点会误命中弹窗的 `<header>`（见 TOPBAR 的说明与 PITFALLS §2.17）。
  */
 export const QUESTION_PANEL = '[data-question-key]'
 

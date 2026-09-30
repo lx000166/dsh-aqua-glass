@@ -17,8 +17,6 @@ import { mountAmbient } from './ambient.ts'
 import { startViewportGuard } from './animation-patch.ts'
 import { readConfig, type GlassConfig } from './config.ts'
 import { createAttributeLease } from './dom-lease.ts'
-// ⚠️ 临时探针（排查提问弹窗标题带用）—— 定位后连同文件一起删。
-import { mountQuestionProbe } from './probe-question.ts'
 import { BODY_ATTRIBUTE } from './seam.ts'
 import { startSeamStamper } from './seam-stamper.ts'
 // 副作用导入：构建期由 lightningcss 编译成哈希类名映射，并把样式文本以
@@ -99,8 +97,6 @@ export function apply(ctx: ClientContext): void {
 
     let lease: ReturnType<typeof createAttributeLease> | null = null
     let unmountAmbient: (() => void) | null = null
-    /** ⚠️ 临时探针的回收（定位后删）。 */
-    let unmountProbe: (() => void) | null = null
     let stopStamper: (() => void) | null = null
     /** 宿主动画 bug 的临时补丁（缩放/启动期间抑制常驻过渡）。 */
     let stopViewportGuard: (() => void) | null = null
@@ -124,8 +120,6 @@ export function apply(ctx: ClientContext): void {
       unmountAmbient = mountAmbient({ hue: config.hue, depth: config.depth })
       // 右下角的诊断角标已下线（视觉定稿前移除）：它会在页面上多挂一个节点。
       // 模块与 `config.debug` 按项目约定保留并标注 @deprecated，需要时可一行恢复。
-      // ⚠️ 临时探针（排查提问弹窗标题带用，定位后连同 probe-question.ts 一起删）。
-      unmountProbe = mountQuestionProbe()
     }
 
     mount()
@@ -134,9 +128,6 @@ export function apply(ctx: ClientContext): void {
 
     return () => {
       document.removeEventListener('DOMContentLoaded', onReady)
-      // 临时探针先撤（它会往 body 挂一个面板）。
-      unmountProbe?.()
-      unmountProbe = null
       // 环境层先撤：它的 dispose 会停掉渲染循环并移除自己 prepend 的 DOM。
       unmountAmbient?.()
       unmountAmbient = null

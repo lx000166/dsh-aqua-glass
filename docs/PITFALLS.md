@@ -99,7 +99,8 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] … { }
 
 **怎么定死的**：宿主 CSS 里 `.header` 压根没有底色（逐行读过），DOM 也查不了
 （Cordis Inspect 只给 Service / Slot / Token，没有 DOM 查询），最后靠**临时探针**
-（`probe-question.ts`，把 computed 值打在屏幕上）才看到真身：
+（`probe-question.ts`：把卡片/子元素/命中链的 computed 值打在屏幕上，截图即可 ——
+**查完已删**，需要时按本文档这段描述重建）才看到真身：
 
 ```
 header.matLq  bg=color(srgb 0.133333 0.14902 0.184314 / 0.38)  bf=blur(12px) saturate(1.4)  pos=relative  h=85
