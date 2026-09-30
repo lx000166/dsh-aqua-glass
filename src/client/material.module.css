@@ -294,6 +294,11 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([dat
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
   position: relative;
   margin: 12px 16px 0;
+  /* 唯一要动的水平内边距是**左侧**：宿主原本是通栏的，左右不对称（左 20 / 视觉右 12）
+     看不出来；改成卡片后就明显了。右侧那对关系（28px 内边距 − .headerCorner 的 16px
+     负外边距 = 视觉 12px）必须保留，所以把左侧从 20px 收到 12px 来配平。
+     ⚠️ **绝不要**写 `padding` 简写或 `padding-right` —— 那会同时改掉右侧那一对。 */
+  padding-left: 12px;
   border: none;
   border-radius: 20px;
   background: var(--aqua-glass);
@@ -430,6 +435,15 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
    * 菜单自身（`--dsw-menu-surface-fill`，58%/45%）与菜单吸顶分组标题
    * （`--dsw-alias-menu-group-header-fill`，官方说明**有意独立于菜单材质**）都不动。 */
   --dsw-specific-menu: rgb(240 246 253 / 0.72);
+
+  /* 悬浮提示气泡。宿主是**不透明**深色（`neutral-bluish-850`/`-750`）+ **硬编码白字**，
+     所以压在流体上就是一块实心深色。改成与卡片同族的玻璃。
+     `--dsw-alias-tooltip-key-bg`（键帽底色）是从这个 token 派生的
+     （`color-mix(in srgb, var(--dsw-alias-tooltip-bg), white 18%)`），
+     所以键帽会跟着一起变 —— 不必单独处理。
+     ⚠️ 文字色必须同时跟着主题走，见下面 `[role='tooltip']` 那条规则：
+     否则浅色态会变成"白底白字"。 */
+  --dsw-alias-tooltip-bg: var(--aqua-well);
 }
 
 /* 深色态：上面那条 alpha 值要反过来用亮色，否则悬停比底色还沉、看不出来。 */
@@ -608,4 +622,24 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-add] {
 
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-add]:hover:not(:disabled) {
   background: var(--aqua-pill-hover);
+}
+
+/* ── 悬浮提示气泡（Tooltip）────────────────────────────────────────────────
+ *
+ * 宿主 `.bubble` 的形态：`position: fixed` + `role="tooltip"`（+ `data-portal` /
+ * `data-side` / `data-pinned`），portal 到 body。底色 `--dsw-alias-tooltip-bg`
+ * 已在上面改成玻璃，这里补两件它单独做不到的事：
+ *
+ * 1. **文字色必须跟着主题走**。宿主把 `color` 硬编码成 `neutral-bluish-00`（两态都是白）。
+ *    白字配不透明深底没问题，但配我们那层**浅色态的玻璃**就是白底白字。
+ *    `--dsw-alias-label-primary` 在浅色态是近黑、深色态是近白，正好。
+ *    （键帽文字是 `color: inherit`，会一起跟上。）
+ * 2. **补模糊**。宿主的 `.bubble` 没有任何 backdrop-filter —— token 只改颜色，
+ *    而提示是**浮在内容之上**的，没有模糊就会透出底下的字。
+ *
+ * `role="tooltip"` 是标准 ARIA role，比任何哈希类名都稳。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='tooltip'] {
+  color: var(--dsw-alias-label-primary);
+  backdrop-filter: var(--aqua-filter);
+  box-shadow: var(--aqua-shadow);
 }

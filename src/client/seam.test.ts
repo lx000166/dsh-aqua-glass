@@ -362,21 +362,37 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
   })
 
   /**
-   * 会话顶栏**不许再覆盖水平内边距**。
+   * 会话顶栏：**只调左侧**内边距来配平，绝不覆盖右侧那一对。
    *
    * 宿主是一对设计：`.header { padding: 10px 28px 0 20px }` 配合
-   * `.headerCorner { margin-right: -16px }`（最右控件伸进那 28px 里 16px）。
-   * 我上一轮把它覆盖成对称 16px，但 -16px 还在 → 右按钮被顶到卡片边缘。
-   * 这条断言把「只换材质、不动几何」钉死。
+   * `.headerCorner { margin-right: -16px }`（最右控件伸进那 28px 里 16px，视觉留白 12px）。
+   * 覆盖右侧（简写或 padding-right）就会把最右控件顶到卡片边缘 —— 已踩过一次。
+   * 而宿主的左右不对称（左 20 / 视觉右 12）在通栏时看不出来，做成卡片后就明显，
+   * 所以左侧单独收到 12px。
    */
-  it('会话顶栏只换材质，不覆盖宿主的内边距', () => {
+  it('会话顶栏只调左侧内边距配平，绝不覆盖右侧那一对', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const headerRule = clean.match(
       /body\[data-dsh-aqua-glass\] :is\(\[data-pane='conversation'\], \[class\*='centerCol'\]\) header\[class\*='header'\]\s*\{([^}]*)\}/,
     )?.[1] ?? ''
     expect(headerRule, '顶栏规则没解析出来').not.toBe('')
-    expect(headerRule, '顶栏不该覆盖 padding —— 宿主的 28px/-16px 是一对').not.toContain('padding')
+    expect(headerRule, '不能动右侧内边距（简写或 padding-right 都不行）').not.toMatch(/padding(-right)?\s*:/)
+    expect(headerRule).toContain('padding-left: 12px')
     expect(headerRule).toContain('background: var(--aqua-glass)')
+  })
+
+  /**
+   * 悬浮提示气泡：宿主是不透明深底 + **硬编码白字**。
+   * 只改底色会让浅色态变成白底白字，所以文字色必须一起跟着主题走。
+   */
+  it('悬浮提示改成玻璃，且文字色跟着主题（否则浅色态白底白字）', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(clean).toMatch(/--dsw-alias-tooltip-bg:\s*var\(--aqua-well\)/)
+    const tooltipRule = clean.match(/\[role='tooltip'\]\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(tooltipRule, 'tooltip 规则没解析出来').not.toBe('')
+    expect(tooltipRule).toContain('color: var(--dsw-alias-label-primary)')
+    // 提示浮在内容之上，没有模糊就会透出底下的字。
+    expect(tooltipRule).toContain('backdrop-filter')
   })
 
   it('侧栏只保留圆角避让的水平内边距（宿主 root 自带 12px）', () => {
