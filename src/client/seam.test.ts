@@ -299,9 +299,61 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
    */
   it('代码块 header 直接瞄 banner 元素，并补模糊（它是 sticky）', () => {
     const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
-    expect(clean).toMatch(/\[class\*='bannerWrap'\]\s*\{[^}]*background-color:\s*var\(--aqua-well\)/)
-    // sticky 元素会盖在滚动中的代码上，只给半透明会透出底下的字。
-    expect(clean).toMatch(/\[class\*='bannerWrap'\]\s*\{[^}]*backdrop-filter/)
+    // 选择器是两条并列：类名片段 + 「以工具栏为直接子元素的那层」（后者与构建无关）。
+    expect(clean).toContain("[class*='bannerWrap']")
+    expect(clean).toContain(':has(> [data-code-block-banner])')
+    const bannerRule = clean.match(/:has\(> \[data-code-block-banner\]\)\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(bannerRule, 'banner 规则没解析出来').not.toBe('')
+    expect(bannerRule).toContain('background-color: var(--aqua-well)')
+    // sticky，会盖在滚动中的代码上，只给半透明会透出底下的字。
+    expect(bannerRule).toContain('backdrop-filter')
+    // 内层 .banner 的第二层玻璃要撤掉，否则 40% + 40% 叠成 64%，反而更像实心。
+    expect(bannerRule).toContain('--dsl-code-block-banner-background-color: transparent')
+  })
+
+  /**
+   * 会话顶栏**不许再覆盖水平内边距**。
+   *
+   * 宿主是一对设计：`.header { padding: 10px 28px 0 20px }` 配合
+   * `.headerCorner { margin-right: -16px }`（最右控件伸进那 28px 里 16px）。
+   * 我上一轮把它覆盖成对称 16px，但 -16px 还在 → 右按钮被顶到卡片边缘。
+   * 这条断言把「只换材质、不动几何」钉死。
+   */
+  it('会话顶栏只换材质，不覆盖宿主的内边距', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const headerRule = clean.match(
+      /body\[data-dsh-aqua-glass\] :is\(\[data-pane='conversation'\], \[class\*='centerCol'\]\) header\[class\*='header'\]\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(headerRule, '顶栏规则没解析出来').not.toBe('')
+    expect(headerRule, '顶栏不该覆盖 padding —— 宿主的 28px/-16px 是一对').not.toContain('padding')
+    expect(headerRule).toContain('background: var(--aqua-glass)')
+  })
+
+  it('侧栏只保留圆角避让的水平内边距（宿主 root 自带 12px）', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const columnRule = clean.match(
+      /body\[data-dsh-aqua-glass\] :is\(\[data-pane='sidebar'\], \[class\*='sidebarCol'\]\)\s*\{([^}]*)\}/,
+    )?.[1] ?? ''
+    expect(columnRule, '侧栏列规则没解析出来').not.toBe('')
+    const padding = columnRule.match(/padding:\s*[\d.]+px\s+([\d.]+)px\s+[\d.]+px/)?.[1]
+    expect(Number(padding), '水平内边距要 ≤2px，否则与 root 的 12px 叠成两层').toBeLessThanOrEqual(2)
+  })
+
+  /**
+   * 工作区行悬浮卡：`createPortal` 到 body，没有稳定属性，
+   * 靠内容里的 `hoverContent` 用 `:has()` 反查容器。
+   */
+  it('工作区悬浮卡用 :has(hoverContent) 反查容器（它在 body 上，无属性锚点）', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(clean).toMatch(/body\[data-dsh-aqua-glass\] > div:has\(\[class\*='hoverContent'\]\)/)
+  })
+
+  it('「+」附件按钮走自己的盖章锚点，而不是动 --dsw-specific-selector', () => {
+    const clean = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(clean).toMatch(/\[data-aqua-add\]\s*\{[^}]*background:\s*var\(--aqua-pill\)/)
+    // 用 inset 描边而不是 border：宿主那颗是 28px 定尺圆钮，加真边框会改盒尺寸。
+    expect(clean).toMatch(/\[data-aqua-add\]\s*\{[^}]*box-shadow:\s*inset 0 0 0 1px/)
+    expect(clean).not.toContain('--dsw-specific-selector:')
   })
 
   /**

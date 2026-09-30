@@ -174,7 +174,12 @@ body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) {
      侧栏必须压过顶栏，否则面板顶边会被顶栏盖住。 */
   z-index: 9;
   margin: 12px;
-  padding: 10px 12px 14px;
+  /* ⚠️ 水平内边距必须接近 0 —— 侧栏内容根**自己**已经有
+   *   `--dsh-sidebar-inline-padding: 12px; padding: 6px var(--dsh-sidebar-inline-padding)`
+   * （ui-sidebar SidebarRoot），我上一轮又加了 12px，等于两层叠加：
+   * 卡片 margin 12 + 我加的 12 + root 的 12 = 距窗口 36px（原生只有 12px）。
+   * 现在只保留 2px 作为圆角避让，水平留白交给 root 自己那 12px。 */
+  padding: 4px 2px 8px;
   border-radius: 20px;
   /* ⚠️ 这里绝不能出现 backdrop-filter —— 见上面的说明。 */
   background: transparent;
@@ -254,11 +259,18 @@ body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'
 }
 
 /* ── 会话顶栏：悬浮玻璃卡，配方与发送栏同款 ───────────────────────────── */
-
+/* ⚠️ **绝不覆盖它的水平内边距**。宿主是：
+ *     .header  { padding: 10px 28px 0 20px }   ← 右侧 28px 是**故意**比左侧宽
+ *     .headerCorner { margin-right: -16px }    ← 最右那个控件伸进这 28px 里 16px
+ *   两者是一对，合起来右侧视觉留白 12px。我上一轮把它覆盖成对称的 `16px`，
+ *   但 `.headerCorner` 的 -16px 还在 → 右按钮被顶到卡片边缘（16-16=0），
+ *   于是"右边贴边、左边间距大"。只做卡片观感，几何一律交还宿主。
+ *
+ *   （题外：`.titleRow` 上那条 `padding-inline-start: max(0, var(--dsh-frame-leading-clearance) - 20px)`
+ *    在 Windows 上算出来是 0 —— 那个变量只在 macOS 发布，与本次偏移无关。） */
 body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
   position: relative;
   margin: 12px 16px 0;
-  padding: 10px 16px 8px;
   border: none;
   border-radius: 20px;
   background: var(--aqua-glass);
@@ -435,10 +447,17 @@ body[data-dsh-aqua-glass] [data-conversation-scroll] {
  *
  * ⚠️ 它 `position: sticky`，会盖在**滚动中的代码**上 —— 只给半透明会透出底下
  * 滚过的文字，必须补模糊。（这里安全：sticky 元素没有 fixed 后代，
- * 不会重演侧栏开关那次「backdrop-filter 创建包含块」的问题。） */
-body[data-dsh-aqua-glass] [class*='bannerWrap'] {
+ * 不会重演侧栏开关那次「backdrop-filter 创建包含块」的问题。）
+ *
+ * ⚠️ 还有一层：内层 `.banner` 自己也有一层玻璃（`--dsl-code-block-banner-background-color`
+ * → 我们已把它指向 `--aqua-well`）。40% 叠 40% = 64%，**反而更像实心**。
+ * 那个局部变量声明在 `.block` 上、由 `.banner` **继承**消费，所以在包裹层上
+ * 改写它就能让内层归零 —— 一层面，正好与代码块 body 同档。 */
+body[data-dsh-aqua-glass] [class*='bannerWrap'],
+body[data-dsh-aqua-glass] :has(> [data-code-block-banner]) {
   background-color: var(--aqua-well);
   backdrop-filter: var(--aqua-filter);
+  --dsl-code-block-banner-background-color: transparent;
 }
 
 /* 内层工具栏（`data-code-block-banner`）本身在 CodeCard 里用的是代码块 token，
@@ -522,4 +541,42 @@ body[data-dsh-aqua-glass] [data-aqua-trajectory] {
 body[data-dsh-aqua-glass] [data-aqua-trajectory] [role='toolbar'],
 body[data-dsh-aqua-glass] [data-aqua-trajectory] section[aria-label='Trajectory timeline'] {
   background: transparent;
+}
+
+/* ── 工作区「会话行」的悬浮预览卡 ────────────────────────────────────────
+ *
+ * 它由 ui-primitives 的 HoverCard `createPortal(card, document.body)` 渲染，
+ * 所以不在侧栏子树里，**也没有稳定属性**（只有临时态的 `data-closing`）。
+ *
+ * 两个变体都是实心：
+ *   .card    { --dsw-hovercard-bg: #2C2C2E; background: var(--dsw-hovercard-bg) }  ← 写死的深灰
+ *   .preview { background: var(--dsw-alias-bg-layer-1) }                            ← 不透明层色
+ * 注意 `--dsw-hovercard-bg` 声明在 `.card` **自己身上** —— 祖先覆盖无效，
+ * 必须命中同一个元素（这是本主题第三次踩同一个坑）。
+ *
+ * 命中办法：卡片内容里带 workspace 自己的 `hoverContent` 类。
+ * 用 `:has()` 从内容反查容器，不依赖任何哈希类名。
+ * 卡片是 body 的直接子元素，所以选择器收紧到 `> div`。 */
+body[data-dsh-aqua-glass] > div:has([class*='hoverContent']) {
+  background: var(--aqua-glass);
+  backdrop-filter: var(--aqua-filter);
+}
+
+/* ── 输入框左下的「+」附件按钮 ────────────────────────────────────────────
+ *
+ * 宿主：`.add { border-radius: 999px; background: var(--dsw-specific-selector) }`
+ * —— 那是一档**不透明**色（bluish-60 / bluish-800），压在发送栏玻璃上就是一颗实心圆。
+ *
+ * 用我们自己的盖章锚点 `data-aqua-add`（seam-stamper 的 ADD 探针）直接命中，
+ * 不碰 `--dsw-specific-selector`（它还有别的消费方）。
+ * 描边用 inset box-shadow 而不是 border —— `border: none` 是宿主的，
+ * 加真边框会改变这颗 28px 圆钮的盒尺寸。 */
+body[data-dsh-aqua-glass] [data-aqua-add] {
+  background: var(--aqua-pill);
+  box-shadow: inset 0 0 0 1px var(--aqua-pill-line);
+  backdrop-filter: blur(var(--aqua-blur));
+}
+
+body[data-dsh-aqua-glass] [data-aqua-add]:hover:not(:disabled) {
+  background: var(--aqua-pill-hover);
 }
