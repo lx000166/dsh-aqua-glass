@@ -637,17 +637,21 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
    *   （`search input`、`address`、徽章、箭头、表格单元格），且多数位于不透明父面板
    *   之内（背后没有流体）。全局降透明会把搜索框变半透明、既糊又白改 —— **此路排除**。
    *
-   * ⚠️ 勘误（2026-09-30）：这里原先写的「原值 `#f8f9faf0` = 94%」**只在 macOS 成立**。
+   * ⚠️ 勘误 + 二次修正（2026-09-30）：这里原先写的「原值 `#f8f9faf0` = 94%」**只在 macOS 成立**。
    * `design-platform.css` 里那两条 94% 挂在 `html[data-platform='darwin'] body` 下
    * （注释原话：没有 MenuSurface 不透明底层时，浮层在原生 vibrancy 上糊不干净，
    * 所以 macOS 保持近乎不透明）。**Windows 上宿主默认就是**
    * `--dsw-specific-menu: var(--dsw-menu-surface-fill)`（浅 58% / 深 45%）。
-   * 也就是说：这条 72% 在 macOS 上是「降透明」，在 Windows 上反而是**升**上去的
-   * （58%→72% / 45%→72%）。目前这个值是按观感拍的（用户验收过），先不动；
-   * 哪天想让 Windows 上这些浮层更透，把它改成 `var(--dsw-menu-surface-fill)` 或更低即可。
+   *
+   * 于是我这句 72% 是按 macOS 的 94% 去"降透明"的，实际效果却是**把 Windows 抬上去**
+   * （58%→72% / 45%→72%）。用户随后报障「用量面板等小浮层背景还是实心的颜色」——
+   * 那些浮层本身**一直有 `backdrop-filter`**（宿主自带 `--dsw-menu-backdrop-filter`），
+   * 实心感纯粹来自这层过厚的填充。
+   * 现在**回到宿主在 Windows 上的档位**，只保留本主题的冷色调：
+   * 浅 `rgb(240 246 253 / 0.58)`、深 `rgb(30 40 54 / 0.45)`。
    * 菜单自身（`--dsw-menu-surface-fill`）与菜单吸顶分组标题
    * （`--dsw-alias-menu-group-header-fill`，官方说明**有意独立于菜单材质**）都不动。 */
-  --dsw-specific-menu: rgb(240 246 253 / 0.72);
+  --dsw-specific-menu: rgb(240 246 253 / 0.58);
 
   /* 悬浮提示气泡。宿主是**不透明**深色（`neutral-bluish-850`/`-750`）+ **硬编码白字**，
      所以压在流体上就是一块实心深色。改成与卡片同族的玻璃。
@@ -662,9 +666,9 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
 /* 深色态：上面那条 alpha 值要反过来用亮色，否则悬停比底色还沉、看不出来。 */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] {
   --dsw-alias-interactive-bg-hover-solid: rgb(148 180 220 / 0.16);
-  /* 浮层（深色）：`#303136f0`（94%）同样是**macOS 专属**那条；Windows 默认是
-     菜单材质 45%。这里取 72%，色相换成冷色底，不与流体的青绿相冲。 */
-  --dsw-specific-menu: rgb(30 40 54 / 0.72);
+  /* 浮层（深色）：回到宿主在 Windows 上的档位（菜单材质 45%，见浅色块那段的勘误），
+     色相换成冷色底，不与流体的青绿相冲。 */
+  --dsw-specific-menu: rgb(30 40 54 / 0.45);
 }
 
 /* ── 菜单底部那条提示带：不叠底色，改成内容自己溶解 ───────────────────────

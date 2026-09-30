@@ -383,9 +383,9 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
   it('浮层降透明只走 --dsw-specific-menu，绝不碰 --dsw-alias-bg-layer-*', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     expect(clean, '浮层材质应覆盖 --dsw-specific-menu').toMatch(
-      /--dsw-specific-menu:\s*rgb\(240 246 253 \/ 0?\.72\)/,
+      /--dsw-specific-menu:\s*rgb\(240 246 253 \/ 0?\.58\)/,
     )
-    expect(clean, '深色态浮层材质缺失').toMatch(/--dsw-specific-menu:\s*rgb\(30 40 54 \/ 0?\.72\)/)
+    expect(clean, '深色态浮层材质缺失').toMatch(/--dsw-specific-menu:\s*rgb\(30 40 54 \/ 0?\.45\)/)
     // 关键防线：bg-layer-* 不许**全局**覆盖。
     // 唯一例外是弹窗作用域（`[role='dialog']`）—— 那里的控件本来就压在玻璃上，
     // 背后是模糊过的底；详见下一条用例。所以先把弹窗那条规则摘掉再扫。
