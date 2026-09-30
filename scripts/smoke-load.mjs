@@ -124,9 +124,17 @@ check(applyError === null, `apply(ctx) 不抛错${applyError === null ? '' : `�
 
 const root = app.document.documentElement
 check(app.document.body.hasAttribute('data-dsh-aqua-glass'), 'apply 后 body 带上了总开关属性')
-check(root.style.getPropertyValue('--aqua-blur') === '12px', 'apply 后写入了 --aqua-blur 变量')
-check(root.style.getPropertyValue('--aqua-frost') === '1', 'apply 后写入了 --aqua-frost 变量')
-check(root.style.getPropertyValue('--aqua-radius') === '14px', 'apply 后写入了 --aqua-radius 变量')
+// ⚠️ 这几个变量必须落在 **body** 的行内样式上，不能落在 documentElement 上。
+// 材质层把默认值声明在 `body[data-dsh-aqua-glass]` 上 —— 那是直接作用于 body 的
+// 声明，而自定义属性走继承：元素自己有条声明时，它优先于从父级继承来的值。
+// 写在 html 上的调节值会被静默盖掉（blur/frost/radius 曾经整整一轮都是死的，
+// 而当时的断言只检查了"变量写进去了"，所以是假绿 —— 这条负向断言就是补它的）。
+const tstyle = app.document.body.style
+check(tstyle.getPropertyValue('--aqua-blur') === '12px', 'apply 后 body 写入了 --aqua-blur 变量')
+check(tstyle.getPropertyValue('--aqua-saturate') === '140%', 'apply 后 body 写入了 --aqua-saturate 变量')
+check(tstyle.getPropertyValue('--aqua-frost') === '1', 'apply 后 body 写入了 --aqua-frost 变量')
+check(tstyle.getPropertyValue('--aqua-radius') === '14px', 'apply 后 body 写入了 --aqua-radius 变量')
+check(root.style.getPropertyValue('--aqua-blur') === '', '调节变量没有写在 documentElement 上（写那里会被 body 声明盖掉）')
 
 // ── 环境层（L3 流体背景 + 小鱼）─────────────────────────────────────────────
 const ambient = app.document.querySelector('[data-dsh-aqua-ambient]')
@@ -154,7 +162,8 @@ check(disposers.length === 1, 'apply 通过 ctx.effect 注册了 1 个 disposer'
 // ── 卸载：完全回收 ────────────────────────────────────────────────────────
 for (const dispose of disposers) dispose()
 check(app.document.body.hasAttribute('data-dsh-aqua-glass') === false, '卸载后 body 属性已移除')
-check(root.style.getPropertyValue('--aqua-blur') === '', '卸载后 CSS 变量已清空')
+check(tstyle.getPropertyValue('--aqua-blur') === '', '卸载后 body 上的调节变量已清空')
+check(root.style.getPropertyValue('--aqua-blur') === '', '卸载后 documentElement 上也没有残留变量')
 check(app.document.querySelector('[data-dsh-aqua-ambient]') === null, '卸载后环境层 DOM 已移除')
 check(app.document.querySelector('[data-dsh-aqua-wallpaper-layer]') === null, '卸载后壁纸层 DOM 已移除')
 check(app.document.getElementById('dsh-aqua-glass-diagnostic') === null, '卸载后诊断角标已移除')
@@ -168,14 +177,19 @@ check(off.document.body.hasAttribute('data-dsh-aqua-glass') === false, 'enabled:
 check(off.document.querySelector('[data-dsh-aqua-ambient]') === null, 'enabled:false 时不挂环境层')
 check(off.document.getElementById('dsh-aqua-glass-diagnostic') === null, 'enabled:false 时不挂角标')
 
-// ── 配置可调：hue/depth/blur 生效 ─────────────────────────────────────────
+// ── 配置可调：hue/depth/blur/saturate 生效 ────────────────────────────────
 const tuned = boot({
-  storage: { [EXPECTED_ID]: JSON.stringify({ blur: 4, radius: 2, hue: 100, depth: 80 }) },
+  storage: { [EXPECTED_ID]: JSON.stringify({ blur: 4, radius: 2, saturate: 90, hue: 100, depth: 80 }) },
 })
 tuned.exported.apply(makeContext().ctx)
-const tunedRoot = tuned.document.documentElement
-check(tunedRoot.style.getPropertyValue('--aqua-blur') === '4px', 'localStorage 的 blur 生效')
-check(tunedRoot.style.getPropertyValue('--aqua-radius') === '2px', 'localStorage 的 radius 生效')
+const tunedStyle = tuned.document.body.style
+check(tunedStyle.getPropertyValue('--aqua-blur') === '4px', 'localStorage 的 blur 生效')
+check(tunedStyle.getPropertyValue('--aqua-radius') === '2px', 'localStorage 的 radius 生效')
+check(tunedStyle.getPropertyValue('--aqua-saturate') === '90%', 'localStorage 的 saturate 生效')
+check(
+  tuned.document.documentElement.style.getPropertyValue('--aqua-blur') === '',
+  '调节值写在 body 而非 documentElement（否则会被材质层的默认值盖掉）',
+)
 
 // ── 缝合盖章器：在合成的宿主 DOM 上验证探针 ───────────────────────────────
 //

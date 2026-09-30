@@ -35,20 +35,38 @@ export interface ClientContext {
 /** 运行时可调参数写到的自定义属性名。 */
 const TOKEN = {
   blur: '--aqua-blur',
+  saturate: '--aqua-saturate',
   frost: '--aqua-frost',
   radius: '--aqua-radius',
 } as const
 
-/** 把配置值写到 `documentElement` 上，让样式表用 var() 消费。 */
-function writeTokens(config: GlassConfig): void {
-  const style = document.documentElement.style
+/**
+ * 把配置值写成 `<body>` 的**行内样式**。
+ *
+ * ⚠️ 目标元素必须是 `body`，不能是 `documentElement` —— 这条踩过坑：
+ * 材质层把默认值声明在 `body[data-dsh-aqua-glass]` 上，那是一条**直接作用于
+ * body 的声明**；而自定义属性走继承，元素自己有条声明时它**优先于从父级继承
+ * 的值**。所以写在 html 上的调节值会被 body 那条声明静默盖掉 ——
+ * `blur` / `frost` / `radius` 三个参数曾经整整一轮都是死的。
+ * （当时的冒烟测试只断言了"变量写进去了"，没断言"玻璃真的用了它"，所以是假绿。）
+ *
+ * 写在 body 的行内样式上属于**同一元素、更高优先级**，才真正生效；
+ * 而且它天然落在主题作用域里：总开关属性一撤，样式表规则不再匹配，
+ * 这些变量也就没人消费。
+ *
+ * @param body - 目标元素（已确认存在）。
+ * @param config - 已校验的配置。
+ */
+function writeTokens(body: HTMLElement, config: GlassConfig): void {
+  const style = body.style
   style.setProperty(TOKEN.blur, `${config.blur}px`)
+  style.setProperty(TOKEN.saturate, `${config.saturate}%`)
   style.setProperty(TOKEN.frost, String(config.frost))
   style.setProperty(TOKEN.radius, `${config.radius}px`)
 }
 
-function clearTokens(): void {
-  const style = document.documentElement.style
+function clearTokens(body: HTMLElement): void {
+  const style = body.style
   for (const name of Object.values(TOKEN)) style.removeProperty(name)
 }
 
@@ -72,12 +90,15 @@ export function apply(ctx: ClientContext): void {
     let unmountDiagnostic: (() => void) | null = null
     let unmountAmbient: (() => void) | null = null
     let stopStamper: (() => void) | null = null
+    /** 行内调节变量写在哪 —— 必须是 body（理由见 writeTokens）。 */
+    let tokenTarget: HTMLElement | null = null
 
     const mount = (): void => {
       if (lease !== null) return
       const body = document.body
       if (body === null) return
-      writeTokens(config)
+      writeTokens(body, config)
+      tokenTarget = body
       lease = createAttributeLease(body, BODY_ATTRIBUTE)
       lease.acquire()
       // 盖章必须在样式生效之前：材质层有一部分规则只认 data-aqua-* 锚点。
@@ -112,7 +133,8 @@ export function apply(ctx: ClientContext): void {
       stopStamper = null
       lease?.release()
       lease = null
-      clearTokens()
+      if (tokenTarget !== null) clearTokens(tokenTarget)
+      tokenTarget = null
     }
   }, 'aqua: glass material')
 }

@@ -21,6 +21,14 @@ export interface GlassConfig {
   enabled: boolean
   /** 玻璃模糊半径（px）。 */
   blur: number
+  /**
+   * 背景饱和度提升（%）。`backdrop-filter` 的第二半 —— 真实玻璃的"折射感"
+   * 一半来自模糊，另一半来自提饱和；只做模糊会像一层白雾。
+   *
+   * 宿主自己的菜单材质就是 `blur(40px) saturate(150%)`
+   * （`--dsw-menu-backdrop-filter`），这里跟它对齐。
+   */
+  saturate: number
   /** 磨砂度**乘数**（0–2，1 = 上游原版）。作用在配方的基础不透明度上。 */
   frost: number
   /** 圆角（px）。 */
@@ -41,6 +49,8 @@ export const DEFAULT_CONFIG: GlassConfig = {
   // 上游 aqua.module.css 的默认是 blur 14px / frost 1；本主题把模糊降到 12px
   // 并把玻璃填充从 42% 降到 30%，因为流体本身较饱和，42% 会"泛白"。
   blur: 12,
+  // 宿主菜单用 150%；我们的玻璃更透（30% vs 58%），略低一档避免过艳。
+  saturate: 140,
   frost: 1,
   radius: 14,
   hue: 320,
@@ -73,6 +83,7 @@ export function readConfig(): GlassConfig {
     return {
       enabled: typeof candidate.enabled === 'boolean' ? candidate.enabled : DEFAULT_CONFIG.enabled,
       blur: clamp(Number(candidate.blur), 0, 60, DEFAULT_CONFIG.blur),
+      saturate: clamp(Number(candidate.saturate), 0, 300, DEFAULT_CONFIG.saturate),
       frost: clamp(Number(candidate.frost), 0, 2, DEFAULT_CONFIG.frost),
       radius: clamp(Number(candidate.radius), 0, 40, DEFAULT_CONFIG.radius),
       hue: clamp(Number(candidate.hue), 0, 360, DEFAULT_CONFIG.hue),

@@ -89,6 +89,39 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
   })
 
   /**
+   * 材质配方必须是「模糊 + 提饱和」两半。
+   *
+   * 只做模糊会像一层白雾 —— 这正是"泛白"的观感来源。宿主自己的菜单材质就是
+   * `blur(40px) saturate(150%)`（`--dsw-menu-backdrop-filter`），不提饱和的
+   * 玻璃在观感上比宿主原生菜单还"假"。这条断言防止后续调参时把 saturate 丢掉。
+   */
+  it('玻璃滤镜同时包含模糊与提饱和', () => {
+    expect(squash(MATERIAL_CSS)).toMatch(
+      /--aqua-filter:\s*blur\(var\(--aqua-blur\)\)\s*saturate\(var\(--aqua-saturate\)\)/,
+    )
+  })
+
+  /**
+   * ⚠️ 踩过的坑：`blur` / `frost` / `radius` / `saturate` 是 JS 写到元素**行内
+   * 样式**上的，而自定义属性走继承 —— 如果这些默认值被声明在 `body[...]` 上，
+   * 那就是"直接作用于 body 的声明"，它**优先于从 html 继承来的值**，行内调节值
+   * 会被静默盖掉。所以默认值必须留在 body 作用域内（写 body 行内样式才赢），
+   * 而写入目标绝不能是 `documentElement`。
+   *
+   * 两者是一对：改了其中一个就必须改另一个。这条断言 + 冒烟脚本里的
+   * "调节变量没有写在 documentElement 上" 一起把这个配对钉住。
+   */
+  it('运行时调节变量的默认值声明在 body 作用域（与写入目标配对）', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    for (const token of ['--aqua-blur:', '--aqua-saturate:', '--aqua-frost:', '--aqua-radius:']) {
+      const owner = clean.match(/body\[data-dsh-aqua-glass\][^{]*\{[^}]*\}/g)?.some((block) => block.includes(token))
+      expect(owner, `${token} 的默认值不在 body 作用域内 —— 行内调节值会被它盖掉`).toBe(true)
+    }
+    // 反面：不能出现在 :root / html 上（那会让写入目标和默认值分属两个元素层）。
+    expect(clean, '可调变量的默认值不应声明在 :root 上').not.toMatch(/:root\s*\{[^}]*--aqua-blur:/)
+  })
+
+  /**
    * 这条是踩过坑之后加的：lightningcss 在同一个声明块里同时看到标准与前缀版本的
    * `backdrop-filter` 时会**丢掉标准那一条**，只留 `-webkit-backdrop-filter`；
    * 而 Electron 的 Chromium 忽略该前缀别名 —— 结果四块面板只剩半透明填充、

@@ -31,6 +31,11 @@
 
 body[data-dsh-aqua-glass] {
   --aqua-blur: 12px;
+  /* 背景饱和度提升。真实玻璃的"折射感"一半来自模糊、一半来自提饱和：
+      只做模糊会像一层白雾（这正是"泛白"的观感来源），提饱和才会让底下的
+      水色透上来。宿主自己的菜单材质就是 `blur(40px) saturate(150%)`
+      （`--dsw-menu-backdrop-filter`），这里跟它对齐。 */
+  --aqua-saturate: 140%;
   --aqua-frost: 1;
   --aqua-radius: 14px;
   /* 玻璃填充：上游是 42%，但压在本主题这块饱和的流体上会"泛白"，
@@ -48,7 +53,7 @@ body[data-dsh-aqua-glass] {
   --aqua-shadow-dark: 0 8px 30px rgb(2 6 14 / 0.32);
   --aqua-inset: inset 0 1px 0 rgb(255 255 255 / 0.5);
   --aqua-inset-dark: inset 0 1px 0 rgb(255 255 255 / 0.07);
-  --aqua-filter: blur(var(--aqua-blur));
+  --aqua-filter: blur(var(--aqua-blur)) saturate(var(--aqua-saturate));
   /* 液态玻璃描边。
      关键是**明暗成对**：左上一点镜面高光，右下转成冷色暗折，中段留过渡。
      只做亮的一半（首版全是白）在白玻璃上等于没有边框 —— 白画在白上不可见。
@@ -347,6 +352,17 @@ body[data-dsh-aqua-glass] {
   --dsw-alias-button-floating-hover: var(--aqua-surface-hover);
   --dsw-alias-button-elevated-fill: var(--aqua-well);
   --dsw-alias-button-tool-bar-fill: var(--aqua-well);
+
+  /* 悬停实色。宿主给「更早」按钮、压缩行按钮、工具卡的 inspect 按钮用的悬停
+     底色是一档**不透明**值（浅色 `neutral-bluish-75`）—— 压在玻璃上，悬停时
+     会整块变成一块不透明白板；而同一界面里其它悬停（`interactive-bg-hover`）
+     本身就是 alpha，观感因此割裂。换成同色系的低透明度。 */
+  --dsw-alias-interactive-bg-hover-solid: rgb(19 45 83 / 0.12);
+}
+
+/* 深色态：上面那条 alpha 值要反过来用亮色，否则悬停比底色还沉、看不出来。 */
+body[data-dsh-aqua-glass][data-ds-dark-theme] {
+  --dsw-alias-interactive-bg-hover-solid: rgb(148 180 220 / 0.16);
 }
 
 /* 工具卡与代码块标题栏：**它们用的都是全局基色 `--dsw-alias-bg-base`**，
