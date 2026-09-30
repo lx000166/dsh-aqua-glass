@@ -361,7 +361,8 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([dat
 
 /* 收起后悬浮轨道向聊天区探进 12px，顶栏卡跟着右移让位
    （28px 内缩 = 离轨道边缘还有 16px 空隙）。 */
-body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'], [class*='centerCol']) header[data-window-drag]:has(> [data-conversation-header-leading]),
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']:not([data-question-key] *) {
   margin-left: 28px;
 }
 
@@ -375,7 +376,8 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([dat
  *
  *   （题外：`.titleRow` 上那条 `padding-inline-start: max(0, var(--dsh-frame-leading-clearance) - 20px)`
  *    在 Windows 上算出来是 0 —— 那个变量只在 macOS 发布，与本次偏移无关。） */
-body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[data-window-drag]:has(> [data-conversation-header-leading]),
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']:not([data-question-key] *) {
   position: relative;
   margin: 12px 16px 0;
   /* 唯一要动的水平内边距是**左侧**：宿主原本是通栏的，左右不对称（左 20 / 视觉右 12）
@@ -393,7 +395,8 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [
 
 /* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释；
    `corner-shape: inherit` 与 `filter: blur()` 的理由同样见那一段） */
-body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[data-window-drag]:has(> [data-conversation-header-leading])::after,
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']:not([data-question-key] *)::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -409,7 +412,8 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [
   pointer-events: none;
 }
 
-body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [class*='centerCol']) header[data-window-drag]:has(> [data-conversation-header-leading]),
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']:not([data-question-key] *) {
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
 }
 

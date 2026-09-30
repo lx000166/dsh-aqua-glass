@@ -546,6 +546,31 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule, '账号提示浮卡没补模糊').toMatch(/> aside\s*\{[^}]*backdrop-filter/)
   })
 
+  /**
+   * ⚠️⚠️ 回归守卫（真事）：顶栏原先用类名片段 `header[class*='header']` 定位，
+   * 而 CSS Module 的哈希类名里保留着语义词 —— 提问弹窗的标题恰好是
+   * `<header class="…_header_…">` 且长在会话栏内，于是被当成顶栏，套上了
+   * `--aqua-glass` 38% + `blur(12px) saturate(1.4)` + `position: relative`，
+   * 成了弹窗顶部一条 85px 的深色带（用户报障两次：「标题部分还是实心的」
+   * 「提问文字贴到底边了」；探针实测该 header 的 computed 值就是我们这套）。
+   * 现在：首选语义锚点 `header[data-window-drag]:has(> [data-conversation-header-leading])`；
+   * 旧片段锚点**必须**带弹窗排除。这条断言守住「不许再出现裸的片段锚点」。
+   */
+  it('顶栏用语义锚点定位，类名片段回退支必须排除提问弹窗', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(clean, '顶栏缺少语义锚点（data-window-drag + 顶栏自身标记）').toContain(
+      "header[data-window-drag]:has(> [data-conversation-header-leading])",
+    )
+    // 反面：任何一处 `header[class*='header']` 后面都必须紧跟弹窗排除
+    const fragments = [...clean.matchAll(/header\[class\*='header'\]([^{,]*)/g)]
+    expect(fragments.length, '顶栏回退支不见了？').toBeGreaterThan(0)
+    for (const match of fragments) {
+      expect(match[1], "裸的 header[class*='header'] 会再次命中提问弹窗的标题").toContain(
+        ':not([data-question-key] *)',
+      )
+    }
+  })
+
   it('侧栏按钮走按钮专用的一档（比卡片更淡），不是卡片玻璃', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const buttonRule = clean.match(/body\[data-dsh-aqua-glass\] button\[class\*='newSession'\]\s*\{([^}]*)\}/)?.[1] ?? ''
@@ -598,8 +623,10 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
    */
   it('会话顶栏只调左侧内边距配平，绝不覆盖右侧那一对', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    // 顶栏现在是「语义锚点 + 带排除的回退支」两个选择器共用一个声明块，
+    // 所以语义支后面跟的是逗号，用 `[^{]*` 跨过去再取声明。
     const headerRule = clean.match(
-      /body\[data-dsh-aqua-glass\] :is\(\[data-pane='conversation'\], \[class\*='centerCol'\]\) header\[class\*='header'\]\s*\{([^}]*)\}/,
+      /body\[data-dsh-aqua-glass\] :is\(\[data-pane='conversation'\], \[class\*='centerCol'\]\) header\[data-window-drag\]:has\(> \[data-conversation-header-leading\]\)[^{]*\{([^}]*)\}/,
     )?.[1] ?? ''
     expect(headerRule, '顶栏规则没解析出来').not.toBe('')
     expect(headerRule, '不能动右侧内边距（简写或 padding-right 都不行）').not.toMatch(/padding(-right)?\s*:/)

@@ -68,8 +68,24 @@ export const TRAJECTORY = `[${STAMP.TRAJECTORY}]`
 
 // ── 表面 ──────────────────────────────────────────────────────────────────
 
-/** 会话区顶栏。 */
-export const TOPBAR = `${CONVERSATION} header[class*='header']`
+/**
+ * 会话区顶栏。
+ *
+ * ⚠️ 首选**语义锚点**：宿主给窗口拖拽区打的 `data-window-drag`，
+ * 且顶栏自己会发出 `data-conversation-header-leading` 子节点
+ * （`ConversationHeader.tsx:18-19`，全宿主只此一处）。
+ *
+ * ⚠️⚠️ 回退支 `header[class*='header']` 是**踩过坑的**：CSS Module 的哈希类名里
+ * 保留着语义词，提问弹窗的标题恰好就是 `<header class="…_header_…">`、又长在会话栏内
+ * → 被这条规则当成顶栏，套上了 `--aqua-glass` 38% + `blur(12px) saturate(1.4)`
+ * + `position: relative`，成了弹窗顶部一条 85px 的深色带
+ * （用户报障：「提问弹窗标题部分还是实心的」+「提问文字贴到底边了」）。
+ * 所以回退支必须排除弹窗作用域。**新增定位一律优先语义属性，别用类名片段。**
+ */
+export const TOPBAR = `${CONVERSATION} header[data-window-drag]:has(> [data-conversation-header-leading])`
+
+/** 顶栏回退锚点（旧写法 + 弹窗排除，理由见 {@link TOPBAR}）。 */
+export const TOPBAR_FALLBACK = `${CONVERSATION} header[class*='header']:not([data-question-key] *)`
 
 /** 发送栏卡片。宿主自带 `data-composer-card`，是可靠锚点。 */
 export const COMPOSER_CARD = '[data-composer-card]'
@@ -88,6 +104,16 @@ export const MENU_SURFACE = '[data-menu-material]'
  * 所以只能命中外层元素 —— 卡片内容自带这个宿主语义属性，用它反查容器。
  */
 export const CHANGES_PREVIEW = '[data-changes-hover-preview]'
+
+/**
+ * 提问弹窗的**外壳**（ui-user-questions 的 `QuestionComposer`）。
+ *
+ * 面板自己发的 key（每次提问都带），卡片是它的**直接子元素**。
+ * 宿主给这张卡的底色是 `--dsw-specific-input-major`（不透明输入面底色），
+ * 本主题把它改成半透明后必须补模糊，见 material.module.css 里那一段。
+ * 目前只有临时探针（`probe-question.ts`）在读它。
+ */
+export const QUESTION_PANEL = '[data-question-key]'
 
 /**
  * 应用弹窗（设置面板 + ui-primitives 的 Modal）。
@@ -144,6 +170,7 @@ export const SEAM = {
   FRAME,
   STATS,
   TOPBAR,
+  TOPBAR_FALLBACK,
   COMPOSER_CARD,
   COMPOSER_SEAT,
   MENU_SURFACE,
