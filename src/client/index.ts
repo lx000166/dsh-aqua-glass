@@ -13,6 +13,8 @@
  * @module client
  */
 import { mountAmbient } from './ambient.ts'
+// ⚠️ 宿主 bug 的临时补丁，上游修好后连同样式表里那条规则一起删（见模块头注释）。
+import { startViewportGuard } from './animation-patch.ts'
 import { readConfig, type GlassConfig } from './config.ts'
 import { mountDiagnostic } from './diagnostic.ts'
 import { createAttributeLease } from './dom-lease.ts'
@@ -90,6 +92,8 @@ export function apply(ctx: ClientContext): void {
     let unmountDiagnostic: (() => void) | null = null
     let unmountAmbient: (() => void) | null = null
     let stopStamper: (() => void) | null = null
+    /** 宿主动画 bug 的临时补丁（缩放/启动期间抑制常驻过渡）。 */
+    let stopViewportGuard: (() => void) | null = null
     /** 行内调节变量写在哪 —— 必须是 body（理由见 writeTokens）。 */
     let tokenTarget: HTMLElement | null = null
 
@@ -101,6 +105,8 @@ export function apply(ctx: ClientContext): void {
       tokenTarget = body
       lease = createAttributeLease(body, BODY_ATTRIBUTE)
       lease.acquire()
+      // ⚠️ 临时补丁：在 body 上打抑制标记，配合样式表里那条「过渡属性常驻」。
+      stopViewportGuard = startViewportGuard(body)
       // 盖章必须在样式生效之前：材质层有一部分规则只认 data-aqua-* 锚点。
       // 之后 MutationObserver 会跟随 React 重挂持续补章。
       stopStamper = startSeamStamper()
@@ -131,6 +137,9 @@ export function apply(ctx: ClientContext): void {
       // 盖章器最后停（已盖的章保留 —— 总开关属性一撤，它们就无害了）。
       stopStamper?.()
       stopStamper = null
+      // 临时补丁也要撤干净：它会往 body 上写属性，绝不能残留。
+      stopViewportGuard?.()
+      stopViewportGuard = null
       lease?.release()
       lease = null
       if (tokenTarget !== null) clearTokens(tokenTarget)

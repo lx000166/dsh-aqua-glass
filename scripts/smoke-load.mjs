@@ -135,6 +135,9 @@ check(tstyle.getPropertyValue('--aqua-saturate') === '140%', 'apply 后 body 写
 check(tstyle.getPropertyValue('--aqua-frost') === '1', 'apply 后 body 写入了 --aqua-frost 变量')
 check(tstyle.getPropertyValue('--aqua-radius') === '14px', 'apply 后 body 写入了 --aqua-radius 变量')
 check(root.style.getPropertyValue('--aqua-blur') === '', '调节变量没有写在 documentElement 上（写那里会被 body 声明盖掉）')
+// ⚠️ 宿主 bug 的临时补丁（侧栏动画）：启动期会在 body 上打抑制标记。
+// 它写的是**宿主 body 的属性**，所以必须验证「挂上」与「撤干净」两侧。
+check(app.document.body.hasAttribute('data-aqua-resizing'), '启动期补丁标记已打上（抑制常驻过渡）')
 
 // ── 环境层（L3 流体背景 + 小鱼）─────────────────────────────────────────────
 const ambient = app.document.querySelector('[data-dsh-aqua-ambient]')
@@ -164,6 +167,7 @@ for (const dispose of disposers) dispose()
 check(app.document.body.hasAttribute('data-dsh-aqua-glass') === false, '卸载后 body 属性已移除')
 check(tstyle.getPropertyValue('--aqua-blur') === '', '卸载后 body 上的调节变量已清空')
 check(root.style.getPropertyValue('--aqua-blur') === '', '卸载后 documentElement 上也没有残留变量')
+check(app.document.body.hasAttribute('data-aqua-resizing') === false, '卸载后补丁标记已撤干净（不残留宿主属性）')
 check(app.document.querySelector('[data-dsh-aqua-ambient]') === null, '卸载后环境层 DOM 已移除')
 check(app.document.querySelector('[data-dsh-aqua-wallpaper-layer]') === null, '卸载后壁纸层 DOM 已移除')
 check(app.document.getElementById('dsh-aqua-glass-diagnostic') === null, '卸载后诊断角标已移除')

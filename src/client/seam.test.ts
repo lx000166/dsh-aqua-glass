@@ -421,6 +421,28 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule).toContain('width: 100% !important')
   })
 
+  /**
+   * ⚠️⚠️ **宿主 bug 的临时补丁 —— 上游修好后连同 `animation-patch.ts` 一起删。**
+   *
+   * 症状：侧栏收起/展开缺滑动动画。根因在宿主：滑动的过渡由 `frame[data-animating]`
+   * 开关，而那个开关靠 `transitionend` 撤下；中途反向切换时浏览器派发的是
+   * `transitioncancel`，于是没有事件收尾的那一段瞬间到位。
+   *
+   * 补丁把过渡属性常驻在框架上。这条断言同时守住"宿主所有需要瞬时的场景"不被误伤 ——
+   * 哪天有人图省事把排除项删了，拖拽和窗口缩放就会开始缓动。
+   */
+  it('【临时补丁】常驻过渡在位，且保留宿主全部「瞬时」排除项', () => {
+    const mediaBlock = MATERIAL_CSS.match(/@media \(prefers-reduced-motion: no-preference\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    expect(mediaBlock, '常驻过渡应包在 prefers-reduced-motion: no-preference 里').toContain(
+      'data-dsh-aqua-glass',
+    )
+    const rule = squash(mediaBlock.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(rule, '常驻过渡规则没解析出来').toContain('grid-template-columns')
+    for (const exclusion of ['data-dragging', 'data-rightbar-instant', 'data-aqua-resizing']) {
+      expect(rule, `常驻过渡丢了排除项 ${exclusion} —— 宿主靠它保持瞬时`).toContain(exclusion)
+    }
+  })
+
   it('侧栏只保留圆角避让的水平内边距（宿主 root 自带 12px）', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const columnRule = clean.match(

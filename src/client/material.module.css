@@ -253,6 +253,31 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-sidebar-root] {
   background: transparent;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * ⚠️⚠️ 宿主 bug 的临时补丁 —— 上游修好后请删除本条规则（及 animation-patch.ts）⚠️⚠️
+ *
+ * **症状**：侧栏收起/展开缺少滑动动画（常常是"收起"瞬间到位、"展开"有动画）。
+ *
+ * **根因**（宿主侧，与本皮肤无关）：滑动是 AppFrame 的栅格轨道做的，过渡挂在框架
+ * 元素上、由 `data-animating` 开关；而那个开关**靠 `transitionend` 撤下**：
+ *     .frame[data-animating] { transition: grid-template-columns: … }
+ * 中途反向切换时，浏览器对被取消的那段过渡派发的是 `transitioncancel`
+ * （宿主没有监听），于是"没有事件来收尾"的那一段就瞬间到位。
+ *
+ * **补丁**：把过渡属性**常驻**在框架上 —— 不再依赖宿主的开关时机。宿主所有
+ * 需要"瞬时"的场景都原样保留：
+ *   · 拖拽中            → `:not([data-dragging])`
+ *   · 右栏瞬时态        → `:not([data-rightbar-instant])`
+ *   · 系统减弱动效      → 外层 `@media (prefers-reduced-motion: no-preference)`
+ *   · 窗口缩放 / 启动期 → `body:not([data-aqua-resizing])`（由 animation-patch.ts 打标记）
+ *
+ * 删除清单：本规则 + `animation-patch.ts` + `index.ts` 里的调用 + seam.test 的断言。 */
+@media (prefers-reduced-motion: no-preference) {
+  body[data-dsh-aqua-glass][data-dsh-aqua-glass]:not([data-aqua-resizing]) [data-aqua-frame]:not([data-dragging]):not([data-rightbar-instant]) {
+    transition: grid-template-columns var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+  }
+}
+
 /* 侧栏内容根在展开宽度上被行内样式冻住（收起交叉淡出需要它），放开宽度，
    内容才会跟着玻璃面板走，而不是溢出右边缘被裁掉。
    ⚠️ 必须用盖章属性定位 —— 宽泛的 `[class*='root']` 会连设置面板内部的
