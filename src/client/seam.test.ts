@@ -18,13 +18,34 @@ import { readConfig } from './config.ts'
 import { createAttributeLease } from './dom-lease.ts'
 import { BODY_ATTRIBUTE, SEAM } from './seam.ts'
 
-const MATERIAL_CSS = readFileSync(new URL('./material.module.css', import.meta.url), 'utf8')
-const AMBIENT_CSS = readFileSync(new URL('./ambient.module.css', import.meta.url), 'utf8')
+const RAW_MATERIAL_CSS = readFileSync(new URL('./material.module.css', import.meta.url), 'utf8')
+const RAW_AMBIENT_CSS = readFileSync(new URL('./ambient.module.css', import.meta.url), 'utf8')
+
+/**
+ * 前缀里主题属性写两遍是**特指度提权**（理由见 material.module.css 顶部那段说明）：
+ * 宿主深色 token 块是 `body[data-ds-dark-theme]`（(0,1,1)），与我们单写一遍的前缀
+ * 平手，平手就看 <head> 顺序 —— 冷启动时我们输，整个深色态失效。
+ *
+ * 下面那些断言关心的是「规则用了哪些选择器与声明」，不是这个提权技巧本身，
+ * 所以统一归一化回写一遍；技巧本身由紧随其后的一条**读原始文本**的断言盯着。
+ */
+const DOUBLED_PREFIX = 'body[data-dsh-aqua-glass][data-dsh-aqua-glass]'
+const SINGLE_PREFIX = 'body[data-dsh-aqua-glass]'
+const normalizePrefix = (css: string): string => css.replaceAll(DOUBLED_PREFIX, SINGLE_PREFIX)
+
+const MATERIAL_CSS = normalizePrefix(RAW_MATERIAL_CSS)
+const AMBIENT_CSS = normalizePrefix(RAW_AMBIENT_CSS)
 
 /** 两份样式表都要过同一套作用域检查 —— 新增样式表时也要登记在这里。 */
 const STYLESHEETS: ReadonlyArray<readonly [string, string]> = [
   ['material.module.css', MATERIAL_CSS],
   ['ambient.module.css', AMBIENT_CSS],
+]
+
+/** 未归一化的原始文本，供「提权技巧是否还在」这类断言使用。 */
+const RAW_STYLESHEETS: ReadonlyArray<readonly [string, string]> = [
+  ['material.module.css', RAW_MATERIAL_CSS],
+  ['ambient.module.css', RAW_AMBIENT_CSS],
 ]
 
 /** 所有样式表拼在一起，供「缝合点是否被某条规则用到」这类跨文件断言。 */
@@ -57,6 +78,31 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
   it('样式表可读且不是空的', () => {
     for (const [name, css] of STYLESHEETS) {
       expect(squash(css).length, `${name} 是空的`).toBeGreaterThan(200)
+    }
+  })
+
+  /**
+   * ⚠️ 这条盯的是**特指度提权**本身：前缀里的主题属性必须写两遍。
+   *
+   * 宿主深色 token 块 `body[data-ds-dark-theme]` 是 (0,1,1)，与我们单写一遍
+   * `body[data-dsh-aqua-glass]` 平手 —— 平手由 <head> 顺序决定，冷启动时我们输，
+   * **整个深色态的 token 覆盖会静默失效**（症状：重启前正常、重启后颜色全变）。
+   *
+   * 这个「写两遍」很容易被当成冗余清理掉，所以专门钉一条。读的是**原始文本**。
+   */
+  it('每条规则的前缀都把主题属性写了两遍（特指度提权，别当冗余删掉）', () => {
+    for (const [name, raw] of RAW_STYLESHEETS) {
+      // 前缀允许缩进（@media 块内的规则），所以按「行内任意位置的选择器起点」匹配。
+      // ⚠️ 必须用 matchAll 取**捕获组**：带 /g 的 String.match 只返回整个匹配
+      // （会带上分隔符与换行），拿它做前缀判断会误报。
+      const prefixPattern = /(?:^|[{};,])\s*(body\[data-dsh-aqua-glass\][^\s{,{]*)/gm
+      const prefixes = [...raw.matchAll(prefixPattern)].map((match) => match[1] ?? '')
+      expect(prefixes.length, `${name} 没解析出任何规则前缀`).toBeGreaterThan(0)
+      const single = prefixes.filter((prefix) => !prefix.startsWith(DOUBLED_PREFIX))
+      expect(
+        single,
+        `${name} 里这些前缀只写了一遍 —— 深色态会输给宿主（平手看注入顺序）：\n${single.join('\n')}`,
+      ).toEqual([])
     }
   })
 

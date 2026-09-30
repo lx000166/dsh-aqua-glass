@@ -17,7 +17,7 @@
  *
  * @module diagnostic
  */
-import { COMPOSER_CARD, FRAME, INPUTBAR, NEW_SESSION, SIDEBAR, SIDEBAR_ROOT, STATS, TOPBAR } from './seam.ts'
+import { COMPOSER_CARD, CONVERSATION, FRAME, INPUTBAR, NEW_SESSION, SIDEBAR, SIDEBAR_ROOT, STATS, TOPBAR } from './seam.ts'
 
 /** 角标上报的缝合点。 */
 const PROBES: ReadonlyArray<readonly [string, string]> = [
@@ -32,7 +32,37 @@ const PROBES: ReadonlyArray<readonly [string, string]> = [
   ['流体板', '[data-dsh-aqua-fluid-canvas]'],
 ]
 
+/**
+ * **会话专属**探针：它们只存在于会话视图里。
+ *
+ * 站在插件页 / 设置页时报 0 是**正确的**，不是故障。角标早期把这种情况也当成
+ * "有异常"挂出来（用户立刻被误导成主题坏了），所以这些探针在没有会话时
+ * 一律显示 `– n/a` 并且**不参与健康判定**。
+ */
+const CONVERSATION_SCOPED: ReadonlySet<string> = new Set(['顶栏', '发送栏', '输入栏', '数据行'])
+
+/** 桌面端原生标题栏底色该有的值 —— 我们的覆盖必须赢下这条，否则说明被宿主盖掉了。 */
+const EXPECTED_TITLEBAR_FILL = 'transparent'
+
 const BADGE_ID = 'dsh-aqua-glass-diagnostic'
+
+/**
+ * 读桌面端原生标题栏用的那个变量的**计算值**。
+ *
+ * 这里是我们与宿主**特指度平手**的地方（我们 `body[data-dsh-aqua-glass]`、
+ * 宿主深色态 `body[data-ds-dark-theme]`，都是 (0,1,1)），冷启动时可能输掉；
+ * 读出来对不上就说明级联被宿主拿走了 —— 比肉眼比颜色可靠。
+ *
+ * @returns 计算值；读不到（或为空）返回 null。
+ */
+function readTitlebarFill(): string | null {
+  try {
+    const fill = getComputedStyle(document.body).getPropertyValue('--dsw-specific-sidebar-fill').trim()
+    return fill === '' ? null : fill
+  } catch {
+    return null
+  }
+}
 
 /**
  * 挂上诊断角标。
@@ -105,12 +135,8 @@ export function mountDiagnostic(version: string): () => void {
     }
 
     // 原生标题栏底色：桌面端 preload 读的就是这个变量的计算值。
-    try {
-      const fill = getComputedStyle(document.body).getPropertyValue('--dsw-specific-sidebar-fill').trim()
-      lines.push(`标题栏色 ${fill || '(未覆盖)'}`)
-    } catch {
-      lines.push('标题栏色 n/a')
-    }
+    const fill = readTitlebarFill()
+    lines.push(`标题栏色 ${fill ?? '(未覆盖)'}`)
 
     // 视口中心点上的元素：如果它带着不透明底色，流体就是被它盖住的。
     if (typeof document.elementFromPoint === 'function') {
@@ -136,19 +162,30 @@ export function mountDiagnostic(version: string): () => void {
    * 要彻底关掉就把配置里的 `debug` 设成 false。
    */
   const render = (): void => {
+    // 没有会话视图时，会话专属探针找不到东西是正常的 —— 不算异常、不铺明细。
+    const inConversation = document.querySelector(CONVERSATION) !== null
     const probes = PROBES.map(([label, selector]) => {
       const count = document.querySelectorAll(selector).length
-      return { label, count, ok: count > 0 }
+      const na = CONVERSATION_SCOPED.has(label) && !inConversation
+      return { label, count, na, ok: count > 0 }
     })
     const runtime = runtimeLines()
-    const healthy = probes.every((probe) => probe.ok)
+    // 标题栏那条是我们与宿主**特指度平手**的地方，最容易在冷启动时输掉。
+    // 单独判一次，让"声明被盖掉"这件事在角标上显式可见，而不是靠肉眼比颜色。
+    const titlebarFill = readTitlebarFill()
+    const cascadeOk = titlebarFill === null || titlebarFill === EXPECTED_TITLEBAR_FILL
+    const healthy = probes.every((probe) => probe.na || probe.ok)
       && !runtime.some((line) => line.includes('no-gl') || line.includes('gl-throw') || /buf 0x/.test(line))
+      && cascadeOk
 
     if (healthy) {
       badge.textContent = `Aqua ${version} ✓`
       return
     }
-    const lines = probes.map((probe) => `${probe.ok ? '✓' : '✗'} ${probe.label} ${probe.count}`)
+    const lines = probes.map((probe) => (
+      probe.na ? `– ${probe.label} n/a（无会话）` : `${probe.ok ? '✓' : '✗'} ${probe.label} ${probe.count}`
+    ))
+    if (!cascadeOk) lines.push(`✗ 标题栏色被宿主盖掉：读到 ${String(titlebarFill)}，应为 ${EXPECTED_TITLEBAR_FILL}`)
     badge.textContent = `Aqua ${version} — 有异常\n${lines.join('\n')}\n${runtime.join('\n')}`
   }
 

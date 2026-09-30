@@ -14,7 +14,7 @@
 
 /* ---------- 环境场景：会呼吸的深海层 ---------- */
 
-body[data-dsh-aqua-glass] [data-dsh-aqua-ambient] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-ambient] {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -26,7 +26,7 @@ body[data-dsh-aqua-glass] [data-dsh-aqua-ambient] {
     radial-gradient(900px 420px at 50% 108%, rgb(156 193 231 / 0.14), transparent 70%);
 }
 
-body[data-dsh-aqua-glass][data-ds-dark-theme] [data-dsh-aqua-ambient] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] [data-dsh-aqua-ambient] {
   background:
     radial-gradient(760px 420px at 50% -8%, rgb(110 165 255 / 0.13), transparent 70%),
     linear-gradient(180deg, rgb(94 143 224 / 0.13) 0%, rgb(94 143 224 / 0) 46%),
@@ -35,7 +35,7 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] [data-dsh-aqua-ambient] {
 
 /* 背景亮度旋钮：深色变暗、浅色变亮。两层都放在 ::after —— 它画在流体
    canvas / 壁纸**之上**；换成 ::before 会被它们盖住，看不见。 */
-body[data-dsh-aqua-glass] [data-dsh-aqua-ambient]::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-ambient]::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -45,7 +45,7 @@ body[data-dsh-aqua-glass] [data-dsh-aqua-ambient]::after {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  body[data-dsh-aqua-glass] [data-dsh-aqua-ambient] {
+  body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-ambient] {
     animation: dsh-aqua-breathe 9s ease-in-out infinite alternate;
   }
 }
@@ -57,7 +57,7 @@ body[data-dsh-aqua-glass] [data-dsh-aqua-ambient]::after {
 
 /* ---------- 流体板 canvas ---------- */
 
-body[data-dsh-aqua-glass] [data-dsh-aqua-fluid-canvas] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-fluid-canvas] {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -66,14 +66,14 @@ body[data-dsh-aqua-glass] [data-dsh-aqua-fluid-canvas] {
 
 /* ---------- 图片壁纸层（本轮只留 DOM，选择器照搬） ---------- */
 
-body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-wallpaper] {
   position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
 }
 
-body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper-img] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-wallpaper-img] {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -81,7 +81,7 @@ body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper-img] {
 }
 
 /* 柔光罩：浅色盖白、深色盖近黑 */
-body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper]::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-wallpaper]::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -89,42 +89,42 @@ body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper]::after {
   pointer-events: none;
 }
 
-body[data-dsh-aqua-glass][data-ds-dark-theme] [data-dsh-aqua-wallpaper]::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] [data-dsh-aqua-wallpaper]::after {
   background: rgb(12 18 27 / var(--aqua-wallpaper-frost, 0));
 }
 
 /* 背景源切换：只显示当前那一块板 */
-body[data-dsh-aqua-glass] [data-dsh-aqua-ambient][data-background='wallpaper'] [data-dsh-aqua-fluid-canvas] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-ambient][data-background='wallpaper'] [data-dsh-aqua-fluid-canvas] {
   display: none;
 }
 
-body[data-dsh-aqua-glass] [data-dsh-aqua-wallpaper][data-background='fluid'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-dsh-aqua-wallpaper][data-background='fluid'] {
   display: none;
 }
 
 /* ---------- 小鱼 / 气泡 / 浮游 ---------- */
 
-body[data-dsh-aqua-glass] [data-aqua-critter] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-critter] {
   position: absolute;
   color: #7ea4df;
   opacity: 0.22;
 }
 
-body[data-dsh-aqua-glass] [data-aqua-critter='fish'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-critter='fish'] {
   animation: dsh-aqua-fish-swim 12s ease-in-out infinite;
 }
 
-body[data-dsh-aqua-glass] [data-aqua-critter='fish-left'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-critter='fish-left'] {
   animation: dsh-aqua-fish-swim-left 16s ease-in-out infinite;
 }
 
-body[data-dsh-aqua-glass] [data-aqua-critter='bubble'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-critter='bubble'] {
   color: #a9c6ef;
   opacity: 0;
   animation: dsh-aqua-bubble-rise 9s ease-in infinite;
 }
 
-body[data-dsh-aqua-glass] [data-aqua-critter='plankton'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-critter='plankton'] {
   color: #7ea4df;
   animation: dsh-aqua-plankton 5s ease-in-out infinite;
 }

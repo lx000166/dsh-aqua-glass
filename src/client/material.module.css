@@ -27,9 +27,32 @@
  * `--aqua-frost` 是**乘数**（0–2，1 = 原版），与上游 `--dsh-aqua-frost` 同义。
  */
 
+/* ══ 为什么属性选择器要写两遍：`body[data-dsh-aqua-glass][data-dsh-aqua-glass]` ══
+ *
+ * ⚠️ 这两遍**不是冗余，删掉就会在深色态下静默失效**。
+ *
+ * 宿主 ui-theme 声明 token 的写法是：
+ *     body                     { --dsw-alias-markdown-code-block: … }   ← (0,0,1)
+ *     body[data-ds-dark-theme] { --dsw-alias-markdown-code-block: … }   ← (0,1,1)
+ *
+ * 而我们的前缀 `body[data-dsh-aqua-glass]` 也是 (0,1,1) —— 与宿主那条**深色规则
+ * 特指度完全相同**。平手时**由「谁在 <head> 里更靠后」决定**，而这个顺序会变：
+ *   - HMR 重载：我们的 <style> 被重新注入，排在最后 → 我们赢；
+ *   - 冷启动：本插件 `immediately: true`，样式表注入**早于**主题样式表 → **宿主赢**。
+ * 于是出现「重启前是好的、重启后颜色全变」——整个深色态的 token 覆盖全部失效。
+ * （实测证据：`getComputedStyle(body)` 读 `--dsw-specific-sidebar-fill` 得到宿主的
+ *  `#1b1b1c`，而不是我们写的 `transparent`。）
+ *
+ * 把属性写两遍 → 我们变 (0,2,1)，**再也不会平手**，与注入顺序彻底解耦。
+ * 这是本项目第二次用「选择器写两遍提权」：另一处是 `composerSeat`（宿主那条是 (0,3,0)）。
+ *
+ * ℹ️ 注意：**不要**改用 !important。`--aqua-*` 那几个可调参数写在 body 的行内样式上，
+ * 样式表里的 !important 会把行内值一起压掉，运行时调参就废了。抬特指度没有这个副作用。
+ * `seam.test.ts` 有一条断言专门盯着这个「写两遍」，防止被当成冗余清理掉。 */
+
 /* ── 变量：上游的卡片玻璃配方 ─────────────────────────────────────────── */
 
-body[data-dsh-aqua-glass] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
   --aqua-blur: 12px;
   /* 背景饱和度提升。真实玻璃的"折射感"一半来自模糊、一半来自提饱和：
       只做模糊会像一层白雾（这正是"泛白"的观感来源），提饱和才会让底下的
@@ -79,7 +102,7 @@ body[data-dsh-aqua-glass] {
 }
 
 /* 深色态：中性冷灰而非蓝 —— 否则磨砂度拉满会露出蓝底，像一块蓝板 */
-body[data-dsh-aqua-glass][data-ds-dark-theme] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] {
   --aqua-glass: color-mix(in srgb, rgb(34 38 47) calc(38% * var(--aqua-frost)), transparent);
   --aqua-surface: color-mix(in srgb, rgb(42 46 56) calc(48% * var(--aqua-frost)), transparent);
   --aqua-surface-hover: color-mix(in srgb, rgb(54 58 70) calc(58% * var(--aqua-frost)), transparent);
@@ -123,7 +146,7 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] {
  * 透明值与配色无关，深浅两态共用一条即可。
  *
  * 另注：这个变量同时是侧栏内容根的默认底色，那条已被下面的规则置透明。 */
-body[data-dsh-aqua-glass] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
   --dsw-specific-sidebar-fill: transparent;
 }
 
@@ -131,23 +154,23 @@ body[data-dsh-aqua-glass] {
 
 /* body 保持宿主基色；`:root` 没有背景，所以按 CSS 规则它会**上提到 canvas**，
    画在整个画面最底层 —— 不会盖住流体。 */
-body[data-dsh-aqua-glass] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
   background: var(--dsw-alias-bg-base);
 }
 
 /* 这几层各自画着不透明底色，不置透明就会把流体整块盖死。 */
-body[data-dsh-aqua-glass] [data-aqua-frame],
-body[data-dsh-aqua-glass] [id='root'],
-body[data-dsh-aqua-glass] [data-phase],
-body[data-dsh-aqua-glass] [data-aqua-details],
-body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-frame],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [id='root'],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-phase],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-details],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) {
   background: transparent !important;
 }
 
 /* 会话进行中：发送区底座那块不透明底板 + 36px 淡出带整块拿掉。
    宿主基础规则（`.root[data-phase='active'] .composerSeat`）特指度是 (0,3,0)，
    所以这里把类名选择器写两遍提权 —— 否则流体被一块实心板挡在后面。 */
-body[data-dsh-aqua-glass] [data-phase] [class*='composerSeat'][class*='composerSeat'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-phase] [class*='composerSeat'][class*='composerSeat'] {
   background: none;
 }
 
@@ -168,7 +191,7 @@ body[data-dsh-aqua-glass] [data-phase] [class*='composerSeat'][class*='composerS
  * 把玻璃挪到伪元素上，列本身只留几何，包含块效应消失，开关回到视口定位，
  * 悬浮卡几何也就能安全恢复。`position: relative` 只影响 absolute 后代、
  * 不影响 fixed，安全。 */
-body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) {
   position: relative;
   /* 高于顶栏卡（8）：设置面板是困在这个层叠上下文里的 fixed 浮层，
      侧栏必须压过顶栏，否则面板顶边会被顶栏盖住。 */
@@ -187,7 +210,7 @@ body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) {
   overflow: hidden;
 }
 
-body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::before {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -208,7 +231,7 @@ body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::bef
  *
  * mask 在这里是安全的：伪元素是叶子节点，没有后代，不会像 backdrop-filter
  * 那样影响别的 fixed 定位元素。 */
-body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -226,7 +249,7 @@ body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::aft
 /* ⚠️ 关键的一层：侧栏内容根自带 `background: var(--dsw-specific-sidebar-fill)`
    （宿主 dsh-client-ui-sidebar 的 root），不置透明的话它会把上面那层玻璃
    整个盖住 —— 侧栏看起来仍是一块不透明的白板。 */
-body[data-dsh-aqua-glass] [data-aqua-sidebar-root] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-sidebar-root] {
   background: transparent;
 }
 
@@ -234,7 +257,7 @@ body[data-dsh-aqua-glass] [data-aqua-sidebar-root] {
    内容才会跟着玻璃面板走，而不是溢出右边缘被裁掉。
    ⚠️ 必须用盖章属性定位 —— 宽泛的 `[class*='root']` 会连设置面板内部的
    那个 `root` 一起选中，把面板的行挤成竖排文字。 */
-body[data-dsh-aqua-glass] [data-aqua-frame]:not([data-sidebar-collapsed]) [data-aqua-sidebar-root] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-frame]:not([data-sidebar-collapsed]) [data-aqua-sidebar-root] {
   width: 100% !important;
 }
 
@@ -243,7 +266,7 @@ body[data-dsh-aqua-glass] [data-aqua-frame]:not([data-sidebar-collapsed]) [data-
    正在淡出的内容。悬浮缝靠「左 12px + 负的右 12px」实现，外侧尺寸不变，
    主列因此不动。内边距必须显式归零：展开态的横向内边距会把轨道按钮挤出
    这条窄列。 */
-body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='sidebar'], [class*='sidebarCol']) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='sidebar'], [class*='sidebarCol']) {
   margin: 12px -12px 12px 12px;
   padding: 0;
   border-radius: 16px;
@@ -254,7 +277,7 @@ body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='sidebar'], [c
 
 /* 收起后悬浮轨道向聊天区探进 12px，顶栏卡跟着右移让位
    （28px 内缩 = 离轨道边缘还有 16px 空隙）。 */
-body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
   margin-left: 28px;
 }
 
@@ -268,7 +291,7 @@ body[data-dsh-aqua-glass] [data-sidebar-collapsed] :is([data-pane='conversation'
  *
  *   （题外：`.titleRow` 上那条 `padding-inline-start: max(0, var(--dsh-frame-leading-clearance) - 20px)`
  *    在 Windows 上算出来是 0 —— 那个变量只在 macOS 发布，与本次偏移无关。） */
-body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
   position: relative;
   margin: 12px 16px 0;
   border: none;
@@ -279,7 +302,7 @@ body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) 
 }
 
 /* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释） */
-body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -293,13 +316,13 @@ body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) 
   pointer-events: none;
 }
 
-body[data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
 }
 
 /* ── 发送栏 ───────────────────────────────────────────────────────────── */
 
-body[data-dsh-aqua-glass] [data-composer-card] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card] {
   position: relative;
   z-index: 8;
   border: none;
@@ -309,12 +332,12 @@ body[data-dsh-aqua-glass] [data-composer-card] {
   backdrop-filter: var(--aqua-filter);
 }
 
-body[data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] [data-composer-card] {
   box-shadow: var(--aqua-inset-dark), var(--aqua-shadow-dark);
 }
 
 /* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释） */
-body[data-dsh-aqua-glass] [data-composer-card]::after {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card]::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -331,25 +354,25 @@ body[data-dsh-aqua-glass] [data-composer-card]::after {
 /* 数据行：**保持原生布局**（不改位置、不改尺寸、不与发送卡融合），
    只把它自带的不透明底拿掉 —— 那正是「发送栏下面那块白色」。
    发送栏自己仍是一张独立的玻璃卡。 */
-body[data-dsh-aqua-glass] [data-aqua-stats] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-stats] {
   background: transparent;
 }
 
 /* 侧栏底部（设置行 + 用户区）：宿主在这几层上画着自己的底色，
    会在用户名上方留下一块白 —— 统一置透明，让卡片玻璃透上来。 */
-body[data-dsh-aqua-glass] [class*='footArea'],
-body[data-dsh-aqua-glass] [class*='footerActions'],
-body[data-dsh-aqua-glass] [data-slot='sidebar.settings'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [class*='footArea'],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [class*='footerActions'],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-slot='sidebar.settings'] {
   background: transparent;
 }
 
 /* 空白会话（英雄区）：发送栏悬在页面中部，投影放开一些，水色透得更足 */
-body[data-dsh-aqua-glass] [data-phase='hero'] [data-composer-card] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-phase='hero'] [data-composer-card] {
   box-shadow: var(--aqua-inset), 0 18px 52px rgb(19 45 83 / 0.18);
 }
 
 /* 会话进行中：发送栏贴底，投影收紧，避免和下方内容抢视觉 */
-body[data-dsh-aqua-glass] [data-phase='active'] [data-composer-card] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-phase='active'] [data-composer-card] {
   box-shadow: var(--aqua-inset), 0 8px 28px rgb(19 45 83 / 0.14);
 }
 
@@ -362,7 +385,7 @@ body[data-dsh-aqua-glass] [data-phase='active'] [data-composer-card] {
  * ⚠️ 这里**只改透明度，给不了模糊**。要真磨砂得单独给这些元素加
  * `backdrop-filter`（见下面的工具卡那一节）。行内代码刻意不加模糊：
  * 一屏可能几十个 `<code>`，逐元素模糊会明显掉帧。 */
-body[data-dsh-aqua-glass] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
   /* 代码块（含 shiki 语法高亮：--shiki-background 就是引用它） */
   --dsw-alias-markdown-code-block: var(--aqua-well);
   /* 代码块的标题栏（语言标签 + 复制按钮那一行） */
@@ -410,7 +433,7 @@ body[data-dsh-aqua-glass] {
 }
 
 /* 深色态：上面那条 alpha 值要反过来用亮色，否则悬停比底色还沉、看不出来。 */
-body[data-dsh-aqua-glass][data-ds-dark-theme] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] {
   --dsw-alias-interactive-bg-hover-solid: rgb(148 180 220 / 0.16);
   /* 浮层（深色）：原本是 94% 的 `#303136f0`；同样降到 72%，冷色底不与流体的青绿相冲。 */
   --dsw-specific-menu: rgb(30 40 54 / 0.72);
@@ -425,7 +448,7 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] {
  *   「bg-base 不能全局改」那条约束的绕法。
  * - 范围内一次全改，**不依赖任何类名**，宿主改名/换包也不受影响。
  * - 自定义属性会继承，所以转写区里所有拿 bg-base 当底色的表面都会跟着变。 */
-body[data-dsh-aqua-glass] [data-conversation-scroll] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-conversation-scroll] {
   --dsw-alias-bg-base: var(--aqua-well);
 }
 
@@ -453,8 +476,8 @@ body[data-dsh-aqua-glass] [data-conversation-scroll] {
  * → 我们已把它指向 `--aqua-well`）。40% 叠 40% = 64%，**反而更像实心**。
  * 那个局部变量声明在 `.block` 上、由 `.banner` **继承**消费，所以在包裹层上
  * 改写它就能让内层归零 —— 一层面，正好与代码块 body 同档。 */
-body[data-dsh-aqua-glass] [class*='bannerWrap'],
-body[data-dsh-aqua-glass] :has(> [data-code-block-banner]) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [class*='bannerWrap'],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] :has(> [data-code-block-banner]) {
   background-color: var(--aqua-well);
   backdrop-filter: var(--aqua-filter);
   --dsl-code-block-banner-background-color: transparent;
@@ -462,7 +485,7 @@ body[data-dsh-aqua-glass] :has(> [data-code-block-banner]) {
 
 /* 内层工具栏（`data-code-block-banner`）本身在 CodeCard 里用的是代码块 token，
    已是半透明；这条只负责给它补一道模糊。 */
-body[data-dsh-aqua-glass] [data-code-block-banner] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-code-block-banner] {
   backdrop-filter: var(--aqua-filter);
 }
 
@@ -479,7 +502,7 @@ body[data-dsh-aqua-glass] [data-code-block-banner] {
  * `--changes-fill` 是卡片**在自己身上**声明的局部变量（只有它自己的 header 消费）
  * —— 这正是 blur 那个坑的同型问题：在祖先上覆盖会被它自己的声明压掉。
  * 直接写在同一个元素上（且特指度更高）才生效，否则 header 仍是一块不透明色。 */
-body[data-dsh-aqua-glass] [data-changed-files] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-changed-files] {
   background: var(--aqua-well);
   backdrop-filter: var(--aqua-filter);
   --changes-fill: transparent;
@@ -500,7 +523,7 @@ body[data-dsh-aqua-glass] [data-changed-files] {
  *
  * 试过「透明珠」（mask 渐变描边）但观感偏花 —— 小尺寸重复控件上，渐变描边
  * 读起来像装饰而不是材质，已撤掉。 */
-body[data-dsh-aqua-glass] button[class*='newSession'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] button[class*='newSession'] {
   background: var(--aqua-pill);
   border: 1px solid var(--aqua-pill-line);
   border-radius: var(--aqua-radius);
@@ -508,7 +531,7 @@ body[data-dsh-aqua-glass] button[class*='newSession'] {
   backdrop-filter: blur(var(--aqua-blur));
 }
 
-body[data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
   /* 悬停基准也跟着降档，否则从 16% 跳到 48% 会闪一下。 */
   background: var(--aqua-pill-hover);
 }
@@ -516,18 +539,18 @@ body[data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
 /* ── 铭牌与设置入口 ───────────────────────────────────────────────────── */
 
 /* 品牌行不再自带底色，避免和侧栏玻璃糊成两片 */
-body[data-dsh-aqua-glass] [data-aqua-wordmark] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-wordmark] {
   background: transparent;
 }
 
-body[data-dsh-aqua-glass] [data-slot='sidebar.settings'] > :is(button, [role='button']) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-slot='sidebar.settings'] > :is(button, [role='button']) {
   border-radius: 10px;
   transition: background 160ms ease;
 }
 
 /* ── 轨迹视图：与顶栏卡左右对齐的玻璃面板 ─────────────────────────────── */
 
-body[data-dsh-aqua-glass] [data-aqua-trajectory] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-trajectory] {
   margin: 8px 16px 12px;
   border: 1px solid var(--aqua-line);
   border-radius: 20px;
@@ -538,8 +561,8 @@ body[data-dsh-aqua-glass] [data-aqua-trajectory] {
 }
 
 /* 工具栏与时间线转透明，让玻璃透上来 */
-body[data-dsh-aqua-glass] [data-aqua-trajectory] [role='toolbar'],
-body[data-dsh-aqua-glass] [data-aqua-trajectory] section[aria-label='Trajectory timeline'] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-trajectory] [role='toolbar'],
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-trajectory] section[aria-label='Trajectory timeline'] {
   background: transparent;
 }
 
@@ -557,7 +580,7 @@ body[data-dsh-aqua-glass] [data-aqua-trajectory] section[aria-label='Trajectory 
  * 命中办法：卡片内容里带 workspace 自己的 `hoverContent` 类。
  * 用 `:has()` 从内容反查容器，不依赖任何哈希类名。
  * 卡片是 body 的直接子元素，所以选择器收紧到 `> div`。 */
-body[data-dsh-aqua-glass] > div:has([class*='hoverContent']) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] > div:has([class*='hoverContent']) {
   background: var(--aqua-glass);
   backdrop-filter: var(--aqua-filter);
 }
@@ -571,12 +594,12 @@ body[data-dsh-aqua-glass] > div:has([class*='hoverContent']) {
  * 不碰 `--dsw-specific-selector`（它还有别的消费方）。
  * 描边用 inset box-shadow 而不是 border —— `border: none` 是宿主的，
  * 加真边框会改变这颗 28px 圆钮的盒尺寸。 */
-body[data-dsh-aqua-glass] [data-aqua-add] {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-add] {
   background: var(--aqua-pill);
   box-shadow: inset 0 0 0 1px var(--aqua-pill-line);
   backdrop-filter: blur(var(--aqua-blur));
 }
 
-body[data-dsh-aqua-glass] [data-aqua-add]:hover:not(:disabled) {
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-aqua-add]:hover:not(:disabled) {
   background: var(--aqua-pill-hover);
 }
