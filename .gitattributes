@@ -1,0 +1,9 @@
+# 统一按 LF 存库：产物里的 CSS 文本会被 lightningcss 压缩后再哈希，
+# 行尾风格不该影响 lib/client.js 的字节。
+* text=auto eol=lf
+
+# 二进制资源不参与转换
+*.png binary
+*.webp binary
+*.ico binary
+*.svg text eol=lf
