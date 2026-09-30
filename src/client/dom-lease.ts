@@ -9,7 +9,8 @@
  * 最后一个持有者释放时才真正恢复原值，其他持有者释放只做减法。
  *
  * 参照实现：`reference/repos/deep-whale/maid-atelier/src/client/index.ts`
- * 的 `createBodyAttributeLease`（MIT），本文件是其精简重写。
+ * 的 `createBodyAttributeLease`，本文件是其精简重写。
+ * 该仓库没有 LICENSE 文件，只在 `package.json` 里声明 MIT —— 按其声明引用。
  *
  * @module dom-lease
  */

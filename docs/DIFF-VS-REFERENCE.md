@@ -17,6 +17,20 @@
 **开关属性的差异**：参考项目把 `data-dsh-aqua` 挂在 **`<html>`** 上（`document.documentElement.toggleAttribute(...)`），
 我们挂在 **`<body>`** 上（`body[data-dsh-aqua-glass]`）。所以它的选择器**不能直接粘**过来。
 
+### ⚠️ 许可证：它是 AGPL-3.0，我们也必须是
+
+| 上游 | `LICENSE` 文件 | `package.json` |
+|---|---|---|
+| `WYH66666666/DSH-Transparent-UI-Plugin`（aqua） | **GNU AGPL-3.0** | 写 MIT ← **自相矛盾** |
+| `reference/repos/aqua-upstream`（我们直接照搬数值的那份） | **GNU AGPL-3.0** | 写 MIT |
+| 另一个 fork（`hi320` 那份） | MIT（"Copyright (c) 2026 John Wu"） | — |
+| `reference/repos/deep-whale` | 无 LICENSE 文件 | 写 MIT |
+
+我们移植了 aqua 的实质内容（玻璃配方数值、`ambient.module.css` 里那段环境层样式、流体着色器、探针表），
+属于衍生作品 → **本仓库整体采用 AGPL-3.0**（根目录 `LICENSE`），源码本就公开，满足其源码可得性要求。
+**两条规则**：① 以后从上游搬任何东西，先看它的 `LICENSE` 文件而不是 `package.json`；
+② 别把本仓库改回 MIT。
+
 > ⚠️ 它自带 README 里额外加了一节「适配 0.1.1-rc.2」，说明它对宿主做过 **API 修补**。
 > 我们对着的宿主是 **0.2.0-rc.2**，槽位/API 又变过（`settings.plugin.item` 现在是 0），所以**不能照抄它的注册代码**。
 

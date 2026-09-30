@@ -4,7 +4,7 @@
   "description": "Aqua 玻璃主题：为 DeepSeek Harness Web GUI 提供磨砂玻璃材质、流体背景与浅深两态适配",
   "icon": "icon.svg",
   "type": "module",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",

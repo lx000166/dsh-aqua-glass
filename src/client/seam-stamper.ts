@@ -14,9 +14,13 @@
  *
  * ## 与上游的关系
  *
- * 探针选择器逐条取自 `reference/repos/aqua-upstream/src/client/seam-stamper.ts`
- * （MIT）。改动只有一处：属性前缀从 `data-dsh-*` 换成本插件自己的 `data-aqua-*`，
+ * 探针选择器逐条取自 `reference/repos/aqua-upstream/src/client/seam-stamper.ts`。
+ * 改动只有一处：属性前缀从 `data-dsh-*` 换成本插件自己的 `data-aqua-*`，
  * 避免与上游皮肤同时安装时互相抢属性。
+ *
+ * ⚠️ 许可证：上游那份的 `LICENSE` 文件是 **GNU AGPL-3.0**（它的 `package.json`
+ * 写的是 MIT —— 自相矛盾，以 LICENSE 文件为准）。本仓库因此整体采用 AGPL-3.0，
+ * 见根目录 `LICENSE` 与 README 的「许可」一节。
  *
  * 盖章是幂等的，且在总开关关闭时**无害**（样式表整体以 body 属性为作用域），
  * 所以关闭主题时不摘章 —— "关"依然呈现原样界面。

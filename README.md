@@ -97,5 +97,14 @@ localStorage.setItem('dsh-aqua-glass', JSON.stringify({
 
 ## 许可
 
-MIT。构建预设改写自 [Small-tailqwq/dsh-deep-whale](https://github.com/Small-tailqwq/dsh-deep-whale)（MIT）的 `maid-atelier/build/tsdown.client.ts`；
-玻璃材质与后续装饰层移植自 [WYH66666666/DSH-Transparent-UI-Plugin](https://github.com/WYH66666666/DSH-Transparent-UI-Plugin)（Aqua）。
+**AGPL-3.0**（见 [LICENSE](LICENSE)）。
+
+为什么是 AGPL 而不是 MIT：本插件**移植了上游 aqua 的实质内容**（玻璃配方数值、`ambient.module.css` 里那段环境层样式、流体着色器），
+而 [WYH66666666/DSH-Transparent-UI-Plugin](https://github.com/WYH66666666/DSH-Transparent-UI-Plugin)（Aqua）的 `LICENSE` 文件是 **GNU AGPL-3.0**
+（注意：它的 `package.json` 写的是 MIT，与 LICENSE 文件自相矛盾；以 LICENSE 文件为准更稳妥）。
+AGPL 是强 copyleft，不能单方面改授为 MIT，所以整个仓库随上游采用 AGPL-3.0 —— 我们本来就公开全部源码，已满足它的源码可得性要求。
+
+第三方来源与署名：
+
+- 构建预设改写自 [Small-tailqwq/dsh-deep-whale](https://github.com/Small-tailqwq/dsh-deep-whale)（MIT）的 `maid-atelier/build/tsdown.client.ts`
+- 玻璃材质与后续装饰层移植自 [WYH66666666/DSH-Transparent-UI-Plugin](https://github.com/WYH66666666/DSH-Transparent-UI-Plugin)（Aqua，AGPL-3.0）
