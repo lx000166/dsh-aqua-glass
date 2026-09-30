@@ -89,16 +89,28 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
   /* 液态玻璃描边。
      关键是**明暗成对**：左上一点镜面高光，右下转成冷色暗折，中段留过渡。
      只做亮的一半（首版全是白）在白玻璃上等于没有边框 —— 白画在白上不可见。
-     作为 `border-box` 背景层铺在 1px 透明边框下（见各卡片的两层 background），
-     既能跟随 border-radius，又不需要 mask。 */
+
+     ⚠️ 高光**不能顶到 100% 白**：那正是「普通 1px 白边框」的观感来源
+     （用户实测报障：「尤其左上角，白色像普通边框」）。真实玻璃的高光是一条很窄的
+     **掠光**：峰值压到 0.62、9% 就落到 0.22，剩下交给中段的冷色。
+     峰值一压，描边读起来是"厚度"而不是"一条线"。 */
   --aqua-edge: linear-gradient(
     140deg,
-    rgb(255 255 255 / 1) 0%,
-    rgb(255 255 255 / 0.42) 16%,
-    rgb(96 132 184 / 0.34) 48%,
-    rgb(62 96 148 / 0.5) 82%,
-    rgb(120 158 208 / 0.46) 100%
+    rgb(255 255 255 / 0.62) 0%,
+    rgb(255 255 255 / 0.22) 9%,
+    rgb(96 132 184 / 0.28) 46%,
+    rgb(62 96 148 / 0.42) 82%,
+    rgb(150 186 228 / 0.34) 100%
   );
+  /* mask 裁出来的 1px 环是**硬边**，在圆角处会露台阶（用户实测「圆角处还有锯齿」）。
+     给环加一个亚像素模糊 = 手工做抗锯齿。伪元素是叶子节点，`filter` 在这里不会像
+     `backdrop-filter` 那样给别的 fixed 元素造包含块。 */
+  --aqua-edge-blur: 0.5px;
+  /* 超椭圆圆角（苹果那套"连续曲率"：圆角与直边相接处不再有曲率突变，而那正是
+     锯齿看起来最明显的地方）。Chrome 139+ 才认，不认就自动退回普通圆角。
+     ⚠️ `corner-shape` **不继承**（初始值 round），所以用它的卡片必须给
+     ::before / ::after 显式写 `corner-shape: inherit`，否则玻璃与描边的圆角形状对不上。 */
+  --aqua-corner: squircle;
 }
 
 /* 深色态：中性冷灰而非蓝 —— 否则磨砂度拉满会露出蓝底，像一块蓝板 */
@@ -116,14 +128,15 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] {
   --aqua-line: var(--aqua-line-dark);
   --aqua-shadow: var(--aqua-shadow-dark);
   --aqua-inset: var(--aqua-inset-dark);
-  /* 深色底上明暗反过来才读得出来：高光更亮，暗折更沉 */
+  /* 深色底上明暗反过来才读得出来：高光更亮，暗折更沉。
+     峰值同样不能顶满（0.34），否则深色玻璃上会浮出一条白线。 */
   --aqua-edge: linear-gradient(
     140deg,
-    rgb(255 255 255 / 0.5) 0%,
-    rgb(255 255 255 / 0.16) 18%,
-    rgb(24 34 48 / 0.55) 52%,
-    rgb(14 22 34 / 0.7) 84%,
-    rgb(120 160 215 / 0.34) 100%
+    rgb(255 255 255 / 0.34) 0%,
+    rgb(255 255 255 / 0.1) 10%,
+    rgb(24 34 48 / 0.5) 52%,
+    rgb(14 22 34 / 0.62) 84%,
+    rgb(120 160 215 / 0.26) 100%
   );
 }
 
@@ -204,6 +217,8 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='sidebar'], [class
    * 现在只保留 2px 作为圆角避让，水平留白交给 root 自己那 12px。 */
   padding: 4px 2px 8px;
   border-radius: 20px;
+  /* 超椭圆圆角（见 token 块里 `--aqua-corner` 的说明）。 */
+  corner-shape: var(--aqua-corner);
   /* ⚠️ 这里绝不能出现 backdrop-filter —— 见上面的说明。 */
   background: transparent;
   box-shadow: var(--aqua-inset), var(--aqua-shadow);
@@ -217,6 +232,7 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='sidebar'], [class
   /* 落在列内容之下。 */
   z-index: -1;
   border-radius: inherit;
+  corner-shape: inherit;
   background: var(--aqua-glass);
   backdrop-filter: var(--aqua-filter);
   pointer-events: none;
@@ -230,19 +246,25 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='sidebar'], [class
  * 的渐变带）。那个写法要求上层不透明 —— 与半透明玻璃天生不兼容。
  *
  * mask 在这里是安全的：伪元素是叶子节点，没有后代，不会像 backdrop-filter
- * 那样影响别的 fixed 定位元素。 */
+ * 那样影响别的 fixed 定位元素。
+ *
+ * ⚠️ `corner-shape` 不继承：不写 `corner-shape: inherit` 的话，卡是超椭圆、
+ * 而这圈描边还是普通圆角，两者会在转角处错开半个像素。
+ * ⚠️ `filter: blur()` 是给这圈硬边**做抗锯齿**的（见 `--aqua-edge-blur`）。 */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol'])::after {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 1;
   border-radius: inherit;
+  corner-shape: inherit;
   padding: 1px;
   background: var(--aqua-edge);
   mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
+  filter: blur(var(--aqua-edge-blur));
   pointer-events: none;
 }
 
@@ -331,23 +353,27 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [
   padding-left: 12px;
   border: none;
   border-radius: 20px;
+  corner-shape: var(--aqua-corner);
   background: var(--aqua-glass);
   box-shadow: var(--aqua-inset), var(--aqua-shadow);
   backdrop-filter: var(--aqua-filter);
 }
 
-/* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释） */
+/* 渐变描边（mask 裁成 1px 环，理由见侧栏那段注释；
+   `corner-shape: inherit` 与 `filter: blur()` 的理由同样见那一段） */
 body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header']::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  corner-shape: inherit;
   padding: 1px;
   background: var(--aqua-edge);
   mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
+  filter: blur(var(--aqua-edge-blur));
   pointer-events: none;
 }
 
@@ -393,6 +419,7 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card] {
   z-index: 8;
   border: none;
   border-radius: 24px;
+  corner-shape: var(--aqua-corner);
   background: transparent;
   box-shadow: 0 10px 36px rgb(19 45 83 / 0.16);
 }
@@ -403,6 +430,7 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card]::before {
   inset: 0;
   z-index: -1;
   border-radius: inherit;
+  corner-shape: inherit;
   background: var(--aqua-glass);
   box-shadow: var(--aqua-inset);
   backdrop-filter: var(--aqua-filter);
@@ -419,12 +447,14 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] [data-composer-card]::after {
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  corner-shape: inherit;
   padding: 1px;
   background: var(--aqua-edge);
   mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
+  filter: blur(var(--aqua-edge-blur));
   pointer-events: none;
 }
 

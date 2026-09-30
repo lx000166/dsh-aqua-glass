@@ -306,6 +306,36 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     ).toBeGreaterThanOrEqual(3)
   })
 
+  /**
+   * 描边是「掠光」而不是一条白线，圆角要连续。
+   *
+   * 用户实测报障：「尤其左上角，白色像普通边框，圆角处还有锯齿」。
+   * 两条成因与对策：
+   * ① 旧配方的渐变端点是 **100% 纯白** —— 1px 的纯白线段在实机上就是"普通边框"。
+   *    压到 0.62 并把亮段收到 9%，才读得出"玻璃厚度"。
+   * ② mask 裁出来的环是**硬边**，圆角处必露台阶；给它亚像素模糊等于手工抗锯齿。
+   *    另外启用超椭圆圆角（曲率连续，圆角与直边相接处不再突变）。
+   *    ⚠️ `corner-shape` 不继承，伪元素必须显式 `inherit`，否则描边与玻璃错开。
+   */
+  it('描边是掠光不是白线：白峰压低 + 亚像素抗锯齿 + 超椭圆圆角', () => {
+    const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    expect(rule, '描边高光不能顶到纯白（那就是"普通白边框"）').not.toMatch(/rgb\(255 255 255 \/ 1\)/)
+    expect(rule, '缺少亚像素抗锯齿变量').toContain('--aqua-edge-blur:')
+    expect(rule, '缺少超椭圆圆角变量').toContain('--aqua-corner:')
+    expect(
+      rule.match(/filter: blur\(var\(--aqua-edge-blur\)\)/g)?.length ?? 0,
+      '三张卡片的描边都要做抗锯齿',
+    ).toBeGreaterThanOrEqual(3)
+    expect(
+      rule.match(/corner-shape: var\(--aqua-corner\)/g)?.length ?? 0,
+      '三张卡片（侧栏/顶栏/发送栏）都要超椭圆圆角',
+    ).toBeGreaterThanOrEqual(3)
+    expect(
+      rule.match(/corner-shape: inherit/g)?.length ?? 0,
+      '玻璃与描边两处伪元素都要 corner-shape: inherit',
+    ).toBeGreaterThanOrEqual(5)
+  })
+
   it('转写区内的内容表面改走玻璃（bg-base 只在容器的子树里降透明）', () => {
     const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
     // 工具卡与代码块标题栏都用全局基色当底色；按类名追必然打偏（实测两轮）。
