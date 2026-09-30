@@ -51,10 +51,14 @@ body[data-dsh-aqua-glass] {
   background: var(--dsw-alias-bg-base);
 }
 
-/* 这三层各自画着不透明底色，不置透明就会把流体整块盖死。
+/* 这几层各自画着不透明底色，不置透明就会把流体整块盖死。
+   `[data-phase]`（会话阶段容器）与 `[data-dsh-details]`（右侧详情列）是上游
+   aqua.module.css 明确点名要抬起的两层，照搬过来。
    FRAME 是本项目唯一没有 data-* 兜底的缝合点，见 seam.ts 的说明。 */
 body[data-dsh-aqua-glass] [class*='_frame'],
 body[data-dsh-aqua-glass] [id='root'],
+body[data-dsh-aqua-glass] [data-phase],
+body[data-dsh-aqua-glass] [data-dsh-details],
 body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) {
   background: transparent !important;
 }

@@ -58,12 +58,53 @@ export function mountDiagnostic(version: string): () => void {
     whiteSpace: 'pre',
   } satisfies Partial<CSSStyleDeclaration>)
 
+  /**
+   * 运行时事实探针。
+   *
+   * 选择器命中了不等于画出来了。「流体背景没显示」有两种截然不同的原因：
+   * canvas 没被定尺寸（着色器没跑起来），或者跑起来了但被别的东西盖住。
+   * 这几行直接把答案读出来 —— 用 `getComputedStyle` 问"谁在画背景"，
+   * 用 canvas 的 client/缓冲尺寸问"着色器有没有干活"。
+   */
+  const runtimeLines = (): string[] => {
+    const lines: string[] = []
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-dsh-aqua-fluid-canvas]')
+    const ambient = document.querySelector<HTMLElement>('[data-dsh-aqua-ambient]')
+
+    if (canvas !== null) {
+      let gl = 'n/a'
+      try {
+        gl = canvas.getContext('webgl2') === null ? 'no-gl' : 'gl-ok'
+      } catch {
+        gl = 'gl-throw'
+      }
+      lines.push(`canvas ${canvas.clientWidth}x${canvas.clientHeight} buf ${canvas.width}x${canvas.height} ${gl}`)
+    }
+
+    if (ambient !== null) {
+      const style = getComputedStyle(ambient)
+      lines.push(`amb z=${style.zIndex} pos=${style.position} op=${style.opacity}`)
+    }
+
+    const bodyStyle = getComputedStyle(document.body)
+    const htmlStyle = getComputedStyle(document.documentElement)
+    lines.push(`body-bg ${bodyStyle.backgroundColor} html-bg ${htmlStyle.backgroundColor}`)
+
+    // 视口中心点上的元素：如果它带着不透明底色，流体就是被它盖住的。
+    const probe = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)
+    if (probe !== null) {
+      const probeStyle = getComputedStyle(probe)
+      lines.push(`mid <${probe.tagName.toLowerCase()}> bg ${probeStyle.backgroundColor}`)
+    }
+    return lines
+  }
+
   const render = (): void => {
     const lines = PROBES.map(([label, selector]) => {
       const count = document.querySelectorAll(selector).length
       return `${count > 0 ? '✓' : '✗'} ${label} ${count}`
     })
-    badge.textContent = `Aqua ${version}\n${lines.join('\n')}`
+    badge.textContent = `Aqua ${version}\n${lines.join('\n')}\n${runtimeLines().join('\n')}`
   }
 
   render()
