@@ -74,6 +74,14 @@ export const TOPBAR = `${CONVERSATION} header[class*='header']`
 /** 发送栏卡片。宿主自带 `data-composer-card`，是可靠锚点。 */
 export const COMPOSER_CARD = '[data-composer-card]'
 
+/**
+ * 共享菜单表面（ui-primitives 的 `MenuSurface` 自己发的属性，始终为
+ * `data-menu-material="translucent"`）。菜单底部的「下面还有内容」渐隐提示
+ * 会用 `--dsw-specific-menu`，而菜单内部那个 token 必须等于菜单自身材质，
+ * 否则提示的终点色与菜单本体不齐、露出一条带子 —— 见样式表里那条覆盖。
+ */
+export const MENU_SURFACE = '[data-menu-material]'
+
 /** 新建会话按钮。 */
 export const NEW_SESSION = `button[class*='newSession']`
 
@@ -120,6 +128,7 @@ export const SEAM = {
   TOPBAR,
   COMPOSER_CARD,
   COMPOSER_SEAT,
+  MENU_SURFACE,
   NEW_SESSION,
   WORDMARK,
   SETTINGS_TRIGGER,
