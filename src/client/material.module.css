@@ -511,6 +511,43 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] :is([data-question-key], [data-pl
   backdrop-filter: var(--aqua-filter);
 }
 
+/* ── 图片灯箱（ui-primitives ImageLightbox）────────────────────────────────
+ *
+ * portal 到 body 的 `[role='dialog']`，结构是 `backdrop > (.mask / img / button)`，
+ * 其中 `.image` 与 `.close` 的底色同样是 `--dsw-specific-input-major`。
+ * 我们把这个 token 改成半透明后，灯箱会出两个问题：
+ *
+ * 1. **图片的衬底必须恢复不透明** —— 透明 PNG、加载中、以及图片比视口小的留白
+ *    都会露出底下的 App（半透明白纱）。这里用回宿主那对**静态**色阶
+ *    （light `neutral-bluish-00` / dark `neutral-bluish-850`）—— 静态色阶我们从不覆盖，
+ *    所以这与宿主原观感逐值一致。
+ *    ⚠️ 锚点用 `[role='dialog'] > img`：Modal 与设置面板的内容都包在 `.content` 里，
+ *    只有灯箱的 `<img>` 是 dialog 的**直接子元素**。
+ *
+ * 2. 关闭钮是浮在暗幕上的控件 → 给它磨砂，与其它浮动控件一致
+ *    （同样是直接子元素 `<button>`，Modal/设置面板的按钮都在 `.content` 之内）。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog'] > img {
+  background: var(--dsw-static-neutral-bluish-00);
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass][data-ds-dark-theme] [role='dialog'] > img {
+  background: var(--dsw-static-neutral-bluish-850);
+}
+
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] [role='dialog'] > button {
+  backdrop-filter: var(--aqua-filter);
+}
+
+/* ── 账号提示浮卡（ui-settings-account AccountNotice）──────────────────────
+ *
+ * `createPortal(<aside class="card">, document.body)` —— 是 **body 的直接子元素**；
+ * 全宿主客户端里只有它这一处 body 级 `<aside>`（另两处 `aside` 在日程详情与轨迹表
+ * 内部），所以 `> aside` 既稳又不会误伤。
+ * 底色同样吃 `--dsw-specific-input-major`，缺模糊 → 补上。 */
+body[data-dsh-aqua-glass][data-dsh-aqua-glass] > aside {
+  backdrop-filter: var(--aqua-filter);
+}
+
 /* 数据行：**保持原生布局**（不改位置、不改尺寸、不与发送卡融合），
    只把它自带的不透明底拿掉 —— 那正是「发送栏下面那块白色」。
    发送栏自己仍是一张独立的玻璃卡。 */
@@ -562,13 +599,12 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] {
    *   3. 计划确认面板（PlanReviewPanel）                  → 同上，`[data-plan-review-key]`
    *   4. 审批面板（ui-approval ApprovalPanel）            → 同上，`[data-approval-key]`
    *   5. 附件栏（ui-attachment AttachmentRail）           → 在发送卡玻璃之内，半透明即可
-   *   6. 图片灯箱（ui-primitives ImageLightbox ×2）       → ⚠️ 未处理：半透明的白纱当灯箱底，观感偏亮
-   *   7. 账号提示浮卡（ui-settings-account AccountNotice）→ ⚠️ 未处理：同样缺模糊
+   *   6. 图片灯箱（ui-primitives ImageLightbox ×2）       → 衬底已用回宿主静态色保持**不透明**，关闭钮补了模糊
+   *   7. 账号提示浮卡（ui-settings-account AccountNotice）→ 已补模糊
    *
    * 也就是说：**每把一个消费方变成半透明，就得同时给它补模糊**，否则就是
    * 「半透明 + 底下文字原样透上来」（用户实测报障过两次：发送卡、提问面板）。
-   * 早期注释写的"聊天里的文件卡"是错的 —— 上面这 7 处才是真实消费方。
-   * 后两处（灯箱 / 账号提示）等用户确认后再按同思路处理。 */
+   * 早期注释写的"聊天里的文件卡"是错的 —— 上面这 7 处才是真实消费方。 */
   --dsw-specific-input-major: var(--aqua-well);
   /* 我发出的对话气泡（ui-chat 的 `.bubble`）。宿主默认是**不透明**的
      `deepseek-50` / `neutral-bluish-850`，所以在流体上是两块实心色块。

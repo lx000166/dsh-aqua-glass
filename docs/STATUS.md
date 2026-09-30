@@ -24,7 +24,10 @@
 | **差异预览卡**（悬停文件行） | `> div:has([data-changes-hover-preview])` | 玻璃（宿主用不透明的 `--dsw-alias-bg-layer-1`）**（未提交）** |
 | 工作区会话行悬浮卡 | `> div:has([class*='hoverContent'])` | 玻璃 |
 | **菜单浮层**（`/` `@` 候选、下拉） | `[data-menu-material]` | ① 内部把 `--dsw-specific-menu` 退回菜单材质；② 底部提示带**不画底色**，改 `mask-image` 淡出内容 |
-| **应用弹窗**（设置面板 + Modal） | `[role='dialog']` | 玻璃在 `::before`；弹窗内部把 layer-1/layer-2/settings-card-fill 三档层色一起玻璃化**（未提交）** |
+| **应用弹窗**（设置面板 + Modal） | `[role='dialog']` | 玻璃在 `::before`；弹窗内部把 layer-1/layer-2/settings-card-fill 三档层色一起玻璃化 |
+| **浮层族：提问 / 计划确认 / 审批** | `[data-question-key]` / `[data-plan-review-key]` / `[data-approval-key]` | 补 `backdrop-filter`（它们吃 `--dsw-specific-input-major`，宿主原值不透明所以没写模糊） |
+| 图片灯箱 | `[role='dialog'] > img` / `> button` | 衬底用回宿主静态色保持**不透明**，关闭钮补模糊 |
+| 账号提示浮卡 | `> aside`（body 直接子元素） | 补模糊 |
 | 提示气泡 | `[role='tooltip']` | 底色 token + **文字色跟着主题**（否则浅色态白底白字） |
 | 侧栏按钮（新会话 / 记忆） | `button[class*='newSession']` | 按钮专用一档（16%），比卡片淡 |
 | 「+」附件按钮 | `[data-aqua-add]`（自盖章） | 玻璃 + 18% 描边 |

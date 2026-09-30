@@ -522,6 +522,26 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(MATERIAL_CSS, '--dsw-specific-input-major 的消费方清单没写全').toContain('账号提示浮卡')
   })
 
+  /**
+   * `--dsw-specific-input-major` 的另外两处消费方（同一个根因的尾巴）：
+   * 图片灯箱与账号提示浮卡。灯箱里那个 **image 的衬底必须不透明**
+   * （透明 PNG / 留白会露出底下的 App），所以用回宿主的静态色阶；
+   * 关闭钮与账号提示浮卡则补磨砂。
+   */
+  it('灯箱衬底恢复不透明 + 灯箱关闭钮与账号提示浮卡补磨砂', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = squash(clean)
+    // 灯箱图片衬底：两态都用宿主静态色阶（我们从不覆盖静态色阶）
+    expect(rule, '灯箱衬底没恢复浅色态不透明').toMatch(
+      /\[role='dialog'\] > img\s*\{[^}]*background:\s*var\(--dsw-static-neutral-bluish-00\)/,
+    )
+    expect(rule, '灯箱衬底没恢复深色态不透明').toMatch(
+      /\[data-ds-dark-theme\] \[role='dialog'\] > img\s*\{[^}]*var\(--dsw-static-neutral-bluish-850\)/,
+    )
+    expect(rule, '灯箱关闭钮没补模糊').toMatch(/\[role='dialog'\] > button\s*\{[^}]*backdrop-filter/)
+    expect(rule, '账号提示浮卡没补模糊').toMatch(/> aside\s*\{[^}]*backdrop-filter/)
+  })
+
   it('侧栏按钮走按钮专用的一档（比卡片更淡），不是卡片玻璃', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const buttonRule = clean.match(/body\[data-dsh-aqua-glass\] button\[class\*='newSession'\]\s*\{([^}]*)\}/)?.[1] ?? ''

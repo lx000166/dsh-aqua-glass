@@ -57,7 +57,32 @@ body[data-dsh-aqua-glass][data-dsh-aqua-glass] … { }
 | 2.12 | 顶栏右侧按钮贴边、左边间距大 | 宿主 `.header { padding: 10px 28px 0 20px }` 与 `.headerCorner { margin-right: -16px }` 是**一对** | 只改 `padding-left: 12px`；**绝不**写 `padding` 简写或 `padding-right` |
 | 2.13 | 发送卡比侧栏/顶栏"更实、还发蓝" | 卡片上补了 `::before` 玻璃后，忘了掐掉宿主 `.card` 自带的 `background: var(--dsw-specific-input-major)`（= `--aqua-well`，深色态 40% 蓝灰）—— 它压在玻璃**下面**，还会被 `backdrop-filter` 一起采样 | 卡上显式 `background: transparent`（**以前的 `background: var(--aqua-glass)` 是把它替换掉的，所以搬走填充就露出来了**） |
 | 2.14 | 运行时调参（blur/frost/radius）一直是死的 | 写到 `documentElement` 上，被材质层在 `body` 上的默认值盖掉（见 §1.2） | 改写到 **body 行内样式**；并补"负向断言"（只测写入方 = 假绿） |
-| 2.15 | 诊断角标在"插件页"误报 ✗ | 会话相关的探针在无会话时读到空 | 无会话时显示 `– n/a（无会话）`，不计入健康度 |
+| 2.16 | **浮层只变半透明、没变模糊**，底下文字原样透上来 | 我们把某个宿主的**不透明**色 token 改成了半透明，而宿主那些消费方**全都假设它不透明**，所以一个 `backdrop-filter` 都没写 | 见下方 §2.16 的专条 |
+| 2.15 | 诊断角标在"插件页"误报 ✗ | 会话相关的探针在无会话时读到空 | 无会话时显示 `– n/a（无会话）`，不计入健康度（角标本身已下线） |
+
+### 2.16 `--dsw-specific-input-major`：改成半透明就必须**逐处补模糊**
+
+**症状**：某些浮层是"半透明 + 底下的对话文字原样透上来"，完全读不清。
+用户实测报障过两次：发送卡（早期）、**提问弹出层**。
+
+**根因**：这个 token 在宿主里是**不透明**的输入面底色（浅色态近白 `neutral-bluish-00`、
+深色态 `neutral-bluish-850`），所以它的消费方**一个 `backdrop-filter` 都没写**。
+本主题把它改成 `--aqua-well`（40%）→ 7 处消费方同时变成"半透明但没模糊"。
+
+**7 处消费方与处置**（改动这个 token 前先读这张表）：
+
+| 消费方 | 处置 |
+|---|---|
+| 1. 发送卡（ui-conversation InputBar `.card`） | 本文件单独画玻璃，与 token 无关 |
+| 2. 提问面板（ui-user-questions QuestionComposer） | 按 `[data-question-key] > *` 补模糊 |
+| 3. 计划确认面板（PlanReviewPanel） | 同上，`[data-plan-review-key]` |
+| 4. 审批面板（ui-approval ApprovalPanel） | 同上，`[data-approval-key]` |
+| 5. 附件栏（ui-attachment AttachmentRail） | 在发送卡玻璃之内，半透明即可 |
+| 6. 图片灯箱（ui-primitives ImageLightbox） | **衬底用回宿主静态色保持不透明**（透明 PNG/留白会露出 App），关闭钮补模糊 |
+| 7. 账号提示浮卡（ui-settings-account AccountNotice） | body 级 `<aside>`，补模糊 |
+
+**两条规矩**：① 锚点优先用宿主发的语义 key（`data-*-key`）或标准 role，别用哈希类名；
+② 模糊要画在**有填充的那个元素**上 —— 填充留在卡片、模糊挪到伪元素，等于没糊（发送卡那次已证明）。
 
 ---
 
