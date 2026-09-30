@@ -358,11 +358,29 @@ body[data-dsh-aqua-glass] {
      会整块变成一块不透明白板；而同一界面里其它悬停（`interactive-bg-hover`）
      本身就是 alpha，观感因此割裂。换成同色系的低透明度。 */
   --dsw-alias-interactive-bg-hover-solid: rgb(19 45 83 / 0.12);
+
+  /* 浮层材质 —— 用宿主给浮层留的**专用契约**，不碰 `--dsw-alias-bg-layer-*`。
+   *
+   * 全 asar 扫描的结论（`reference/probe/asar-token-consumers.mjs`）：
+   * - `--dsw-specific-menu`：18 个消费点，**几乎全部自带 `backdrop-filter`**
+   *   （对话面板、目标条、任务菜单、日程选择器、子代理菜单、cordis 面板…）。
+   *   所以这里**只降透明度就够**，不需要自己去补模糊。
+   * - `--dsw-alias-bg-layer-1`：35+ 个消费点，其中大量是**输入框与小控件**
+   *   （`search input`、`address`、徽章、箭头、表格单元格），且多数位于不透明父面板
+   *   之内（背后没有流体）。全局降透明会把搜索框变半透明、既糊又白改 —— **此路排除**。
+   *
+   * 原值 `#f8f9faf0` = 94% 近乎不透明（README 说那是 macOS 上无菜单底层时的兜底），
+   * 降到 72%：保留可读性，同时让流体透上来。色相换成与卡片同族的冷白。
+   * 菜单自身（`--dsw-menu-surface-fill`，58%/45%）与菜单吸顶分组标题
+   * （`--dsw-alias-menu-group-header-fill`，官方说明**有意独立于菜单材质**）都不动。 */
+  --dsw-specific-menu: rgb(240 246 253 / 0.72);
 }
 
 /* 深色态：上面那条 alpha 值要反过来用亮色，否则悬停比底色还沉、看不出来。 */
 body[data-dsh-aqua-glass][data-ds-dark-theme] {
   --dsw-alias-interactive-bg-hover-solid: rgb(148 180 220 / 0.16);
+  /* 浮层（深色）：原本是 94% 的 `#303136f0`；同样降到 72%，冷色底不与流体的青绿相冲。 */
+  --dsw-specific-menu: rgb(30 40 54 / 0.72);
 }
 
 /* 工具卡与代码块标题栏：**它们用的都是全局基色 `--dsw-alias-bg-base`**，

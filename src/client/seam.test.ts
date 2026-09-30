@@ -246,8 +246,35 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule).toMatch(/--dsw-alias-markdown-inline-code:\s*var\(--aqua-well\)/)
   })
 
-  it('新建会话按钮是简单玻璃底 + 半透明描边', () => {
+  /**
+   * 浮层走**专用契约** `--dsw-specific-menu`，不走 `--dsw-alias-bg-layer-*`。
+   *
+   * 全 asar 扫描的结论（`reference/probe/asar-token-consumers.mjs`）：
+   * `--dsw-specific-menu` 的 18 个消费点几乎全部自带 `backdrop-filter`，降透明度
+   * 是安全的；而 `--dsw-alias-bg-layer-1` 有 35+ 个消费点，大量是输入框与小控件
+   * （`search input` / `address` / 徽章 / 箭头），全局降透明会把它们变成半透明，
+   * 且多数位于不透明父面板内、背后没有流体 —— 既糊又白改。
+   *
+   * 这条断言是给未来的自己看的：别再"顺手"去改 bg-layer。
+   */
+  it('浮层降透明只走 --dsw-specific-menu，绝不碰 --dsw-alias-bg-layer-*', () => {
     const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(clean, '浮层材质应覆盖 --dsw-specific-menu').toMatch(
+      /--dsw-specific-menu:\s*rgb\(240 246 253 \/ 0?\.72\)/,
+    )
+    expect(clean, '深色态浮层材质缺失').toMatch(/--dsw-specific-menu:\s*rgb\(30 40 54 \/ 0?\.72\)/)
+    // 关键防线：bg-layer-* 一个字都不许出现。
+    for (const forbidden of [
+      '--dsw-alias-bg-layer-1:',
+      '--dsw-alias-bg-layer-2:',
+      '--dsw-alias-bg-layer-3:',
+      '--dsw-alias-settings-card-fill:',
+    ]) {
+      expect(clean, `不要覆盖 ${forbidden}（35+ 消费点里大量是输入框）`).not.toContain(forbidden)
+    }
+  })
+
+  it('新建会话按钮是简单玻璃底 + 半透明描边', () => {    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
     const buttonRule = clean.match(/body\[data-dsh-aqua-glass\] button\[class\*='newSession'\]\s*\{([^}]*)\}/)?.[1] ?? ''
     expect(buttonRule, '新建按钮规则没解析出来').not.toBe('')
     expect(buttonRule).toContain('border: 1px solid var(--aqua-line)')
