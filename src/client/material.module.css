@@ -38,6 +38,10 @@ body[data-dsh-aqua-glass] {
   --aqua-glass: color-mix(in srgb, rgb(255 255 255) calc(30% * var(--aqua-frost)), transparent);
   --aqua-surface: color-mix(in srgb, rgb(255 255 255) calc(48% * var(--aqua-frost)), transparent);
   --aqua-surface-hover: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--aqua-frost)), transparent);
+  /* 「内容凹槽」：代码块 / 行内代码 / 工具卡这类**嵌在内容流里**的表面。
+     比卡片实一点（40% vs 30%），因为文字要压在上面，可读性优先。
+     用户拍板的透明度就是 40%。 */
+  --aqua-well: color-mix(in srgb, rgb(255 255 255) calc(40% * var(--aqua-frost)), transparent);
   --aqua-line: rgb(19 45 83 / 0.26);
   --aqua-line-dark: rgb(148 180 220 / 0.32);
   --aqua-shadow: 0 10px 34px rgb(19 45 83 / 0.16);
@@ -65,6 +69,8 @@ body[data-dsh-aqua-glass][data-ds-dark-theme] {
   --aqua-glass: color-mix(in srgb, rgb(34 38 47) calc(38% * var(--aqua-frost)), transparent);
   --aqua-surface: color-mix(in srgb, rgb(42 46 56) calc(48% * var(--aqua-frost)), transparent);
   --aqua-surface-hover: color-mix(in srgb, rgb(54 58 70) calc(58% * var(--aqua-frost)), transparent);
+  /* 深色态的内容凹槽：比底色**亮**一档（不是更暗），文字压在上面才读得清 */
+  --aqua-well: color-mix(in srgb, rgb(58 66 82) calc(40% * var(--aqua-frost)), transparent);
   --aqua-line: var(--aqua-line-dark);
   --aqua-shadow: var(--aqua-shadow-dark);
   --aqua-inset: var(--aqua-inset-dark);
@@ -316,14 +322,68 @@ body[data-dsh-aqua-glass] [data-phase='active'] [data-composer-card] {
   box-shadow: var(--aqua-inset), 0 8px 28px rgb(19 45 83 / 0.14);
 }
 
-/* ── 新建会话按钮：小尺寸玻璃原子 ─────────────────────────────────────── */
+/* ── 内容表面：代码块 / 行内代码 / 工具卡 / 侧栏按钮 ─────────────────────
+ *
+ * 前面几节处理的都是「外壳表面」（侧栏 / 顶栏 / 发送栏）。聊天区里的
+ * 代码块、行内代码、工具卡是**另一套**表面，它们全部挂在宿主的 CSS 变量上，
+ * 所以覆盖变量一次就能全改，不需要逐个组件去追类名。
+ *
+ * ⚠️ 这里**只改透明度，给不了模糊**。要真磨砂得单独给这些元素加
+ * `backdrop-filter`（见下面的工具卡那一节）。行内代码刻意不加模糊：
+ * 一屏可能几十个 `<code>`，逐元素模糊会明显掉帧。 */
+body[data-dsh-aqua-glass] {
+  /* 代码块（含 shiki 语法高亮：--shiki-background 就是引用它） */
+  --dsw-alias-markdown-code-block: var(--aqua-well);
+  /* 代码块的标题栏（语言标签 + 复制按钮那一行） */
+  --dsw-alias-markdown-code-block-banner: var(--aqua-well);
+  /* 行内代码 —— 就是正文里 `--aqua-edge` 那种高亮块 */
+  --dsw-alias-markdown-inline-code: var(--aqua-well);
+  /* 聊天里的文件卡 */
+  --dsw-specific-input-major: var(--aqua-well);
 
+  /* 侧栏「新会话 / 记忆」那两颗小白牌：它们的底色来自 button-floating-fill，
+     不是组件自己的类。改成与卡片同档的玻璃，白牌感立刻消失。 */
+  --dsw-alias-button-floating-fill: var(--aqua-well);
+  --dsw-alias-button-floating-hover: var(--aqua-surface-hover);
+  --dsw-alias-button-elevated-fill: var(--aqua-well);
+  --dsw-alias-button-tool-bar-fill: var(--aqua-well);
+}
+
+/* 工具卡（`.xxx_card` 用的是**全局基色** --dsw-alias-bg-base）。
+   ⚠️ 绝不能把 bg-base 整体改透明 —— body / 框架层都靠它。所以这条单独针对
+   工具卡覆盖，并补上 backdrop-filter 让它真的磨砂，而不只是变透明。 */
+body[data-dsh-aqua-glass] [data-tool] [class*='_card'],
+body[data-dsh-aqua-glass] [data-code-block-banner] {
+  background: var(--aqua-well);
+  backdrop-filter: var(--aqua-filter);
+}
+
+/* ── 新建会话按钮：小尺寸玻璃珠（"透明珠"路线）──────────────────────────
+ *
+ * 原先它是「不透明底 + 一圈深色硬边」，压在侧栏玻璃上就是一块白牌子。
+ * 现在去掉硬边框，只用与三块卡片**同款**的 mask 渐变描边，填充降到
+ * --aqua-well 档 —— 变成玻璃上略亮的一颗珠，而不是贴上去的牌。 */
 body[data-dsh-aqua-glass] button[class*='newSession'] {
-  background: var(--aqua-surface);
-  border: 1px solid rgb(19 45 83 / 0.16);
+  position: relative;
+  background: var(--aqua-well);
+  border: none;
   border-radius: var(--aqua-radius);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
   backdrop-filter: blur(var(--aqua-blur));
+}
+
+body[data-dsh-aqua-glass] button[class*='newSession']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--aqua-edge);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 body[data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
@@ -331,8 +391,7 @@ body[data-dsh-aqua-glass] button[class*='newSession']:hover:not(:disabled) {
 }
 
 body[data-dsh-aqua-glass][data-ds-dark-theme] button[class*='newSession'] {
-  border-color: rgb(148 180 220 / 0.2);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
 
 /* ── 铭牌与设置入口 ───────────────────────────────────────────────────── */

@@ -167,15 +167,45 @@ describe('seam 契约（样式表 ↔ seam.ts）', () => {
     expect(rule).toMatch(/--dsw-specific-sidebar-fill:\s*transparent/)
   })
 
-  it('三处卡片用 mask 裁出的渐变描边，不用两层背景', () => {
+  it('卡片描边用 mask 裁环，不用两层背景', () => {
     const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
     expect(rule, '缺 --aqua-edge 渐变定义').toContain('--aqua-edge:')
     // ⚠️ 这条是踩过坑的：`border-box`/`padding-box` 两层背景里，border-box 层铺的是
     // 整个元素盒子而不是边框那一圈，半透明玻璃盖不住它，渐变会从整块卡片透出来。
     // 所以描边必须用 mask 裁成 1px 环。
-    expect(rule, '不该再用 padding-box/border-box 两层背景做描边').not.toContain('border-box')
     expect(rule, '不该再用 padding-box/border-box 两层背景做描边').not.toContain('padding-box')
-    expect(rule.match(/mask-composite: exclude/g)?.length ?? 0, '侧栏/顶栏/发送栏三处都要 mask 描边').toBeGreaterThanOrEqual(3)
+    expect(
+      rule.match(/mask-composite: exclude/g)?.length ?? 0,
+      '侧栏/顶栏/发送栏 + 新建按钮，至少 4 处 mask 描边',
+    ).toBeGreaterThanOrEqual(4)
+  })
+
+  it('内容表面（代码块/行内代码/工具卡/侧栏按钮）走 token 覆盖', () => {
+    const rule = squash(MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
+    // 这些表面全部挂在宿主 CSS 变量上，覆盖变量一次即可全改。
+    for (const token of [
+      '--dsw-alias-markdown-code-block:',
+      '--dsw-alias-markdown-code-block-banner:',
+      '--dsw-alias-markdown-inline-code:',
+      '--dsw-specific-input-major:',
+      '--dsw-alias-button-floating-fill:',
+    ]) {
+      expect(rule, `缺少 ${token} 覆盖`).toContain(token)
+    }
+    // ⚠️ 全局基色绝不能整体改透明：body / 框架层 / 工具卡都靠它。
+    expect(rule, '不能覆盖 --dsw-alias-bg-base').not.toContain('--dsw-alias-bg-base:')
+    // 行内代码只改色不加模糊（几十个 <code> 逐个模糊会掉帧）。
+    expect(rule).toMatch(/--dsw-alias-markdown-inline-code:\s*var\(--aqua-well\)/)
+  })
+
+  it('新建会话按钮是玻璃珠：无硬边框 + 与卡片同款 mask 描边', () => {
+    const clean = MATERIAL_CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = squash(clean)
+    const buttonRule = clean.match(/body\[data-dsh-aqua-glass\] button\[class\*='newSession'\]\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(buttonRule, '新建按钮规则没解析出来').not.toBe('')
+    expect(buttonRule).toContain('border: none')
+    expect(buttonRule).not.toContain('1px solid')
+    expect(rule).toMatch(/button\[class\*='newSession'\]::after\s*\{[^}]*mask-composite: exclude/)
   })
 })
 
