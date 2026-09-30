@@ -1,0 +1,62 @@
+{
+  "name": "dsh-aqua-glass",
+  "version": "0.1.0",
+  "description": "Aqua 玻璃主题：为 DeepSeek Harness Web GUI 提供磨砂玻璃材质、流体背景与浅深两态适配",
+  "icon": "icon.svg",
+  "type": "module",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": ">=0.2.0-rc.1 <0.3.0-0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "lightningcss": "^1.32.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.8"
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke": "node scripts/smoke-load.mjs",
+    "verify": "node scripts/verify-bundle.mjs && node scripts/smoke-load.mjs",
+    "check": "node --check lib/index.js && node --check lib/client.js",
+    "prepack": "pnpm bundle && pnpm test && pnpm verify"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

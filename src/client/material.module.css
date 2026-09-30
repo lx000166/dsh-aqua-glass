@@ -1,0 +1,101 @@
+/**
+ * L2 材质层 —— 玻璃本体。
+ *
+ * 全部规则都以 `body[data-dsh-aqua-glass]` 为前缀：总开关一关，整个作用域
+ * 退出，宿主回到原样，不需要逐条撤销。
+ *
+ * 选择器与 `seam.ts` 一一对应；`seam.test.ts` 会读这份文件的文本，逐条断言
+ * 缝合点仍原样存在。改这里的选择器，就必须同步改 seam.ts。
+ *
+ * 可调参数由 config.ts 在运行时写到 `document.documentElement` 上
+ * （`--aqua-blur` / `--aqua-frost` / `--aqua-radius`），这里只给兜底值。
+ */
+
+/* ── 变量 ─────────────────────────────────────────────────────────────── */
+
+body[data-dsh-aqua-glass] {
+  --aqua-blur: 18px;
+  --aqua-frost: 0.55;
+  --aqua-radius: 14px;
+  --aqua-line: rgb(255 255 255 / 0.5);
+  --aqua-glass: rgb(255 255 255 / var(--aqua-frost));
+  --aqua-glass-strong: rgb(255 255 255 / 0.72);
+  --aqua-shadow: 0 8px 32px rgb(15 23 42 / 0.1);
+  --aqua-filter: blur(var(--aqua-blur)) saturate(1.6);
+}
+
+/* 深色态：宿主把标记放在 body 上 */
+body[data-dsh-aqua-glass][data-ds-dark-theme] {
+  --aqua-line: rgb(255 255 255 / 0.09);
+  --aqua-glass: rgb(17 21 28 / var(--aqua-frost));
+  --aqua-glass-strong: rgb(17 21 28 / 0.72);
+  --aqua-shadow: 0 8px 32px rgb(0 0 0 / 0.45);
+}
+
+/* ── 让底层透出来 ─────────────────────────────────────────────────────── */
+
+/* 不透明祖先会把玻璃后面的东西全挡住，这两层必须先透明。 */
+body[data-dsh-aqua-glass] [id='root'],
+body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) {
+  background: transparent !important;
+}
+
+/* ── 顶栏 ─────────────────────────────────────────────────────────────── */
+
+body[data-dsh-aqua-glass] :is([data-pane='conversation'], [class*='centerCol']) header[class*='header'] {
+  background: var(--aqua-glass-strong) !important;
+  backdrop-filter: var(--aqua-filter);
+  -webkit-backdrop-filter: var(--aqua-filter);
+  border-bottom: 1px solid var(--aqua-line);
+}
+
+/* ── 侧栏 ─────────────────────────────────────────────────────────────── */
+
+body[data-dsh-aqua-glass] :is([data-pane='sidebar'], [class*='sidebarCol']) > div {
+  background: var(--aqua-glass) !important;
+  backdrop-filter: var(--aqua-filter);
+  -webkit-backdrop-filter: var(--aqua-filter);
+  border-right: 1px solid var(--aqua-line);
+}
+
+/* 品牌行本身不再叠一层底色，避免和侧栏玻璃糊成两片 */
+body[data-dsh-aqua-glass] [class*='logoRow'] {
+  background: transparent !important;
+}
+
+body[data-dsh-aqua-glass] [data-slot='sidebar.settings'] > :is(button, [role='button']) {
+  border-radius: var(--aqua-radius);
+  transition: background 160ms ease;
+}
+
+/* ── 发送栏 ───────────────────────────────────────────────────────────── */
+
+body[data-dsh-aqua-glass] [data-composer-card] {
+  background: var(--aqua-glass-strong) !important;
+  backdrop-filter: var(--aqua-filter);
+  -webkit-backdrop-filter: var(--aqua-filter);
+  border: 1px solid var(--aqua-line);
+  border-radius: var(--aqua-radius);
+  box-shadow: var(--aqua-shadow);
+}
+
+/* 英雄区（空白会话）的发送栏更透，让背景露出来 */
+body[data-dsh-aqua-glass] [data-phase='hero'] [data-composer-card] {
+  background: var(--aqua-glass) !important;
+}
+
+/* 会话进行中：贴近底部，收一点圆角 */
+body[data-dsh-aqua-glass] [data-phase='active'] [data-composer-card] {
+  border-radius: calc(var(--aqua-radius) + 4px);
+}
+
+/* ── 新建会话按钮 ─────────────────────────────────────────────────────── */
+
+body[data-dsh-aqua-glass] button[class*='newSession'] {
+  background: var(--aqua-glass) !important;
+  backdrop-filter: blur(calc(var(--aqua-blur) * 0.6));
+  -webkit-backdrop-filter: blur(calc(var(--aqua-blur) * 0.6));
+  border: 1px solid var(--aqua-line);
+  border-radius: var(--aqua-radius);
+  box-shadow: var(--aqua-shadow);
+}

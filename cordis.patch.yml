@@ -1,0 +1,10 @@
+# dsh bundle patch —— 安装本包时把自身插入 profile 的插件树。
+#
+# 这份文件由 package.json 的 dsh.bundle.patch 声明；插件管理器读到它才会
+# 把本包计入 dsh.profile.bundles 并默认启用。没有它，安装会在 pnpm 之前
+# 就被 not-bundle 拒绝。
+#
+# name 必须与 package.json 的 name 完全一致。
+- insert:
+    - id: aqua-glass
+      name: dsh-aqua-glass
